@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>월간 엔카 리포트 빌더 v4</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+<style>
+:root { --cyan:#4fc3f7; --cyandk:#0ea5e9; --navy:#0f1c2e; --navy2:#162436; --navy3:#1e3a52; --navy4:#254a66; --pw:800px; --ph:1130px; }
+*{ box-sizing:border-box; }
+body{ margin:0; font-family:'Malgun Gothic',sans-serif; display:flex; background:#070e17; color:#e0eaf5; height:100vh; overflow:hidden; }
+.preview-area{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+/* ── 사이드바 */
+.sidebar{ width:280px; min-width:160px; background:var(--navy); padding:15px; overflow-y:auto; box-shadow:2px 0 24px rgba(0,0,0,.6); z-index:100; border-right:1px solid var(--navy3); }
+.sidebar.hidden{ display:none; }
+.sb-ttl{ color:var(--cyan); text-align:center; margin:0 0 14px; font-size:15px; font-weight:bold; letter-spacing:1.5px; text-transform:uppercase; }
+.sec{ background:var(--navy2); border:1px solid var(--navy3); padding:11px; margin-bottom:11px; border-radius:10px; }
+.sec h3{ margin:0 0 8px; color:var(--cyan); border-bottom:1px solid var(--navy3); padding-bottom:4px; font-size:13px; }
+.inp{ width:100%; padding:6px 8px; border:1px solid var(--navy3); border-radius:6px; font-size:12px; font-family:inherit; background:var(--navy); color:#c8ddf0; }
+.inp:focus{ outline:none; border-color:var(--cyan); background:var(--navy2); color:#e0eaf5; }
+.inp::placeholder{ color:#4a6a88; }
+.btn{ width:100%; padding:8px; color:#fff; border:none; font-weight:bold; cursor:pointer; border-radius:6px; margin-top:4px; font-size:12px; font-family:inherit; transition:filter .15s,transform .1s; }
+.btn:hover{ filter:brightness(1.15); }
+.btn:active{ transform:scale(.98); }
+.btn-red  { background:#1a6a9e; }
+.btn-dark { background:var(--navy3); }
+.btn-green{ background:#1a7a5a; }
+.btn-blue { background:var(--cyandk); }
+.btn-gray { background:#2e4a62; }
+.btn-orange{ background:#1e7cb8; }
+.save-st{ font-size:11px; color:#5a8aaa; text-align:center; margin-top:4px; min-height:15px; }
+
+/* 뉴스 */
+.nws-box{ max-height:160px; overflow-y:auto; border:1px solid var(--navy3); background:var(--navy); margin-top:6px; padding:3px; border-radius:6px; }
+.nws-row{ font-size:11px; padding:5px 3px; border-bottom:1px solid var(--navy3); display:flex; gap:5px; align-items:flex-start; color:#b0cce0; }
+.nws-row:last-child{ border-bottom:none; }
+.nws-row label{ cursor:pointer; line-height:1.4; color:#b0cce0; }
+#nwsSt{ font-size:11px; color:#5a8aaa; margin-top:3px; min-height:14px; }
+.manual-sec{ border-top:1px solid var(--navy3); padding-top:7px; margin-top:7px; }
+.manual-sec p{ font-size:11px; color:#7aaac8; margin:0 0 4px; }
+.date-row{ display:flex; gap:4px; margin-bottom:5px; }
+.date-row label{ font-size:11px; color:#7aaac8; display:block; margin-bottom:2px; }
+
+/* ── 프리뷰 */
+.preview{ flex:1; overflow-y:auto; padding:35px 35px 0; display:flex; flex-direction:column; align-items:center; gap:35px; background:#070e17; }
+.preview.pv-mode{ padding:20px 20px 0; background:#040a11; }
+.page-wrap{ position:relative; }
+.page-lbl{ position:absolute; left:-65px; top:0; color:#fff; font-weight:bold; writing-mode:vertical-rl; background:var(--navy3); padding:9px 5px; border-radius:5px 0 0 5px; font-size:11px; letter-spacing:2px; border-left:3px solid var(--cyan); }
+.page-acts{ position:absolute; right:-38px; top:0; display:flex; flex-direction:column; gap:4px; }
+.pg-del{ background:var(--navy3); color:#7aaac8; border:none; border-radius:4px; padding:5px 6px; cursor:pointer; font-size:11px; line-height:1; }
+.pg-del:hover{ background:#c0392b; color:#fff; }
+
+/* ── A4 페이지 */
+.page{ width:var(--pw); min-height:var(--ph); background:#fff; padding:50px; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.7); position:relative; overflow:hidden; border-top:4px solid var(--cyandk); }
+.pg-hdr{ display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #0f1c2e; padding-bottom:5px; margin-bottom:12px; }
+.logo-img{ height:52px; width:auto; display:block; }
+.ttl-main{ font-size:34px; font-weight:bold; text-decoration:underline; text-underline-offset:5px; outline:none; cursor:text; color:#0f1c2e; text-decoration-color:var(--cyandk); }
+.ttl-main:focus{ background:#f0f7ff; border-radius:3px; }
+.ttl-main:empty::before{ content:'제목 입력'; color:#aac4dc; font-style:italic; pointer-events:none; }
+.date-top{ font-size:20px; font-weight:bold; cursor:text; border-bottom:1px dashed #aac4dc; min-width:70px; outline:none; color:#0f1c2e; }
+.date-top:focus{ border-bottom-color:var(--cyandk); }
+.pg-ftr{ display:flex; justify-content:space-between; font-size:11px; margin-top:auto; padding-top:8px; border-top:1px solid #d0e4f4; color:#5a8aaa; }
+.pg-ftr span{ outline:none; cursor:text; }
+
+/* ── 페이지 컨텐츠 */
+.pg-content{ flex:1; position:relative; min-height:180px; }
+
+/* ── 챕터 블록 */
+.ch-block{ margin-bottom:10px; border:1px dashed transparent; border-radius:6px; position:relative; }
+.ch-block:hover{ border-color:#b8d4ec; }
+.ch-block.active{ border-color:var(--cyandk); background:rgba(14,165,233,.04); }
+.ch-hdr{ display:flex; align-items:center; gap:5px; }
+.ch-drag{ color:#aac4dc; cursor:grab; font-size:15px; padding:4px; user-select:none; }
+.ch-drag:active{ cursor:grabbing; }
+.ch-name{ flex:1; font-size:18px; font-weight:bold; border-bottom:2px solid #0f1c2e; padding:5px 4px; outline:none; color:#0f1c2e; }
+.ch-name:focus{ border-bottom-color:var(--cyandk); background:#f0f7ff; }
+.ch-name:empty::before{ content:'챕터 제목 입력'; color:#aac4dc; font-style:italic; pointer-events:none; }
+.ch-del{ background:none; border:none; color:#aac4dc; cursor:pointer; font-size:16px; padding:3px 5px; border-radius:3px; }
+.ch-del:hover{ color:#e05c2f; background:#fff0f0; }
+
+/* 챕터 툴바 */
+.ch-tb{ display:flex; gap:2px; padding:4px 0; flex-wrap:wrap; align-items:center; border-bottom:1px solid #dceef8; margin-bottom:5px; opacity:0; pointer-events:none; transition:opacity .15s; }
+.ch-block:hover .ch-tb, .ch-block.active .ch-tb{ opacity:1; pointer-events:auto; }
+.tb-btn{ background:#f0f7ff; border:1px solid #b8d4ec; border-radius:4px; padding:2px 7px; font-size:12px; cursor:pointer; font-family:inherit; color:#1a4a6e; line-height:1.5; }
+.tb-btn:hover{ background:#d0e8f8; border-color:var(--cyandk); }
+.tb-b{ font-weight:bold; }
+.tb-i{ font-style:italic; }
+.tb-u{ text-decoration:underline; }
+.tb-sep{ width:1px; height:16px; background:#b8d4ec; margin:0 2px; flex-shrink:0; }
+.tb-sel{ border:1px solid #b8d4ec; border-radius:4px; padding:2px 3px; font-size:11px; cursor:pointer; font-family:inherit; background:#f0f7ff; color:#1a4a6e; }
+
+/* ── 챕터 컨텐츠 영역 (이미지+텍스트 공존) */
+.ch-body-wrap{
+  position:relative;
+  min-height:50px;
+}
+.ch-body-wrap.dov::after{
+  content:'이미지를 여기에 놓으세요';
+  position:absolute; inset:0;
+  background:rgba(14,165,233,.07);
+  border:2px dashed var(--cyandk);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; color:var(--cyandk);
+  pointer-events:none; border-radius:4px;
+  z-index:30;
+}
+.ch-body{
+  min-height:50px; outline:none; font-size:12px; line-height:1.8;
+  padding:5px 4px; position:relative; z-index:1; color:#1a2e42;
+}
+.ch-body:empty::before{ content:attr(data-ph); color:#aac4dc; font-style:italic; pointer-events:none; }
+.ch-body:focus{ background:#f5f9ff; border-radius:2px; }
+.ch-body table{ width:100%; border-collapse:collapse; margin:6px 0; font-size:11px; }
+.ch-body th{ background:#e0f0fa; border:1px solid #98c4e0; padding:5px; text-align:center; color:#0f1c2e; }
+.ch-body td{ border:1px solid #b8d4ec; padding:5px; text-align:center; outline:none; color:#1a2e42; }
+
+/* 붙여넣기 버튼 */
+.paste-btn{ opacity:.45; }
+.paste-btn.active{ opacity:1 !important; background:#1a7a5a !important; color:#fff !important; border-color:#1a7a5a !important; }
+
+/* 챕터 추가 바 */
+.add-ch-bar{ text-align:center; padding:7px 0 2px; }
+.add-ch-btn{ background:#fff; border:1px dashed #b8d4ec; color:#7aaac8; padding:7px 22px; border-radius:20px; cursor:pointer; font-size:12px; font-family:inherit; transition:all .2s; }
+.add-ch-btn:hover{ border-color:var(--cyandk); color:var(--cyandk); background:#f0f7ff; }
+.ch-name-inp{ padding:6px 12px; border:2px solid var(--cyandk); border-radius:20px; font-size:12px; font-family:inherit; outline:none; width:200px; background:#f5f9ff; color:#0f1c2e; }
+
+/* ── 플로팅 이미지 (ch-body-wrap 내 absolute) */
+.fi{ position:absolute; cursor:move; user-select:none; z-index:20; }
+.fi img{ width:100%; height:100%; object-fit:contain; display:block; pointer-events:none; }
+.fi.sel{ outline:2px solid var(--cyandk); outline-offset:1px; }
+.fi-h{ position:absolute; width:10px; height:10px; background:#fff; border:2px solid var(--cyandk); border-radius:50%; display:none; z-index:5; }
+.fi.sel .fi-h{ display:block; }
+.fi-h[data-d="nw"]{ top:-5px; left:-5px; cursor:nw-resize; }
+.fi-h[data-d="ne"]{ top:-5px; right:-5px; cursor:ne-resize; }
+.fi-h[data-d="sw"]{ bottom:-5px; left:-5px; cursor:sw-resize; }
+.fi-h[data-d="se"]{ bottom:-5px; right:-5px; cursor:se-resize; }
+.fi-cut{ position:absolute; top:-11px; left:-11px; background:var(--navy4); color:var(--cyan); border:1px solid var(--cyan); border-radius:50%; width:19px; height:19px; font-size:11px; cursor:pointer; z-index:11; line-height:17px; text-align:center; padding:0; display:none; }
+.fi.sel .fi-cut{ display:block; }
+.fi-del{ position:absolute; top:-11px; right:-11px; background:#c0392b; color:#fff; border:none; border-radius:50%; width:19px; height:19px; font-size:11px; cursor:pointer; z-index:11; line-height:19px; text-align:center; padding:0; display:none; }
+.fi.sel .fi-del{ display:block; }
+
+/* 잘라내기 힌트 토스트 */
+#clipHint{ display:none; position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+  background:rgba(15,28,46,.95); color:var(--cyan); padding:8px 18px; border-radius:20px;
+  font-size:12px; z-index:9999; pointer-events:none; white-space:nowrap; border:1px solid rgba(79,195,247,.4); }
+#clipHint.show{ display:block; }
+
+/* ── 표 그리드 피커 */
+#tblGrid{ display:none; position:fixed; z-index:6000; background:var(--navy2); border:1px solid var(--navy3); padding:6px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,.5); }
+#tblGridCells{ display:grid; grid-template-columns:repeat(10,18px); gap:2px; }
+.tg-cell{ width:18px; height:18px; border:1px solid var(--navy3); background:var(--navy); cursor:pointer; border-radius:2px; }
+.tg-cell.hl{ background:rgba(79,195,247,.2); border-color:var(--cyan); }
+#tblGridLabel{ font-size:11px; color:#7aaac8; text-align:center; padding-top:4px; }
+
+/* ── 표 관리 툴바 */
+#tblTb{ display:none; position:fixed; z-index:5500; background:var(--navy2); border:1px solid var(--navy3); border-radius:6px; padding:3px 5px; box-shadow:0 2px 16px rgba(0,0,0,.5); align-items:center; gap:3px; white-space:nowrap; }
+#tblTb button{ background:var(--navy3); border:1px solid var(--navy4); border-radius:4px; padding:2px 7px; font-size:11px; cursor:pointer; font-family:inherit; color:#b0cce0; }
+#tblTb button:hover{ background:var(--navy4); color:var(--cyan); }
+#tblTb .tb-del{ color:#e05c2f; font-size:13px; padding:1px 5px; }
+#tblTb .tb-sep2{ width:1px; height:16px; background:var(--navy3); margin:0 2px; }
+
+/* ── 차트 모달 */
+.modal-bg{ display:none; position:fixed; inset:0; background:rgba(4,10,17,.7); z-index:3000; align-items:center; justify-content:center; }
+.modal-bg.show{ display:flex; }
+.modal{ background:var(--navy2); padding:20px; border-radius:12px; width:400px; max-height:88vh; overflow-y:auto; border-top:3px solid var(--cyan); border:1px solid var(--navy3); border-top:3px solid var(--cyan); color:#c8ddf0; }
+.modal h3{ margin:0 0 12px; color:var(--cyan); font-size:15px; }
+.ch-data-row{ display:flex; gap:6px; margin-bottom:5px; align-items:center; }
+.ch-data-row input{ padding:5px; border:1px solid var(--navy3); border-radius:5px; font-family:inherit; font-size:12px; background:var(--navy); color:#c8ddf0; }
+.ch-data-row .li{ flex:2; }
+.ch-data-row .vi{ flex:1; }
+.ch-data-row button{ background:var(--navy3); color:#7aaac8; border:none; border-radius:4px; padding:3px 7px; cursor:pointer; font-size:11px; }
+.modal-ft{ display:flex; gap:8px; margin-top:12px; }
+
+/* 페이지 추가 버튼 */
+.add-page-bar{ display:flex; justify-content:center; padding:20px 0 30px; }
+#addPgBtn{ cursor:pointer; border:2px dashed var(--navy3); color:#3a6a8a; padding:13px 50px; border-radius:10px; font-size:14px; background:transparent; font-family:inherit; transition:all .2s; }
+#addPgBtn:hover{ border-color:var(--cyan); color:var(--cyan); }
+
+/* 미리보기 플로팅 바 */
+#pvBar{ display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--navy2); color:#c8ddf0; padding:10px 20px; border-radius:30px; box-shadow:0 4px 24px rgba(0,0,0,.6); z-index:9000; gap:12px; align-items:center; font-size:13px; border:1px solid var(--navy3); }
+#pvBar.show{ display:flex; }
+#pvBar button{ background:rgba(79,195,247,.1); border:1px solid rgba(79,195,247,.3); color:#c8ddf0; padding:6px 16px; border-radius:20px; cursor:pointer; font-size:12px; font-family:inherit; }
+#pvBar button:hover{ background:rgba(79,195,247,.2); color:var(--cyan); }
+#pvBar .pv-print{ background:var(--cyandk); border-color:var(--cyandk); color:#fff; }
+
+/* ── 사이드바 리사이저 */
+#sbResizer{ width:6px; cursor:ew-resize; background:transparent; flex-shrink:0; transition:background .15s; z-index:200; }
+#sbResizer:hover,#sbResizer.dragging{ background:rgba(79,195,247,.25); }
+
+.sortable-ghost{ opacity:.2; background:rgba(79,195,247,.08); }
+
+/* 체크박스/라디오 색상 오버라이드 */
+input[type="checkbox"], input[type="radio"]{ accent-color:var(--cyan); }
+
+/* ── 헤더 로고 업로드 영역 */
+.hdr-logo-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:100px;min-height:56px;border:2px dashed #4a90d9;border-radius:8px;cursor:pointer;flex-shrink:0;background:#e8f4ff;transition:all .2s;box-shadow:0 1px 4px rgba(74,144,217,.2);}
+.hdr-logo-wrap:hover{border-color:#1a6abf;background:#d4eaff;box-shadow:0 2px 8px rgba(74,144,217,.3);}
+.hdr-logo-ph{font-size:10px;color:#2a6aa0;text-align:center;line-height:1.6;padding:5px 10px;pointer-events:none;user-select:none;font-weight:bold;}
+.hdr-logo-img{display:none;height:52px;width:auto;max-width:280px;object-fit:contain;pointer-events:none;user-select:none;}
+.hdr-logo-wrap.has-img{border:2px solid transparent;background:transparent;}
+.hdr-logo-wrap.has-img:hover{border-color:#aac4dc;}
+.hdr-logo-wrap.has-img .hdr-logo-ph{display:none;}
+.hdr-logo-wrap.has-img .hdr-logo-img{display:block;}
+.hdr-logo-h{display:none;position:absolute;bottom:-5px;right:-5px;width:12px;height:12px;background:#fff;border:2px solid var(--cyandk);border-radius:50%;cursor:se-resize;z-index:5;}
+.hdr-logo-wrap.has-img .hdr-logo-h{display:block;}
+.hdr-logo-del{display:none;position:absolute;top:-7px;right:-7px;width:16px;height:16px;background:#c0392b;color:#fff;border:none;border-radius:50%;font-size:9px;cursor:pointer;z-index:6;line-height:16px;text-align:center;padding:0;}
+.hdr-logo-wrap.has-img:hover .hdr-logo-del{display:block;}
+/* ── 미리보기/인쇄: 편집 UI 완전 제거 */
+.preview.pv-mode .ch-tb,.preview.pv-mode .add-ch-bar,.preview.pv-mode .ch-del,.preview.pv-mode .ch-drag,.preview.pv-mode .fi-h,.preview.pv-mode .fi-del,.preview.pv-mode .fi-cut,.preview.pv-mode .chart-del-btn{display:none !important;}
+.preview.pv-mode .ch-block{border:none !important;}
+.preview.pv-mode .ch-body{background:transparent !important;}
+.preview.pv-mode .hdr-logo-ph,.preview.pv-mode .hdr-logo-h,.preview.pv-mode .hdr-logo-del{display:none !important;}
+.preview.pv-mode .hdr-logo-wrap{border:none !important;background:transparent !important;cursor:default !important;}
+
+@media print{
+  .sidebar,.page-lbl,.page-acts,.ch-tb,.ch-del,.ch-drag,.add-ch-bar,.fi-h,.fi-del,.fi-cut,.add-page-bar,#pvBar,#tblTb,#clipHint,.hdr-logo-ph,.hdr-logo-h,.hdr-logo-del,.chart-del-btn{ display:none !important; }
+  .hdr-logo-wrap{ border:none !important; background:transparent !important; }
+  body{ background:#fff; overflow:visible; height:auto; color:#000; }
+  .preview{ padding:0; overflow:visible; background:#fff; gap:0; }
+  .page{ box-shadow:none; margin:0; page-break-after:always; overflow:visible; border-top:none; }
+  .ch-block{ border:none !important; }
+  .ch-body{ background:transparent !important; color:#000 !important; }
+  .ch-body td, .ch-body th{ color:#000 !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar" id="sidebar">
+  <h2 class="sb-ttl">ENCAR BUILDER</h2>
+
+  <input type="hidden" id="pubMonth" value="2026-06">
+
+  <div class="sec">
+    <h3>👤 담당자 정보</h3>
+    <input type="text" id="ctName"  class="inp" placeholder="담당자 이름" style="margin-bottom:4px;">
+    <input type="text" id="ctPhone" class="inp" placeholder="전화번호 (예: 010-0000-0000)">
+    <button class="btn btn-dark" onclick="applyContact()" style="margin-top:6px;">모든 페이지 하단에 적용</button>
+    <p style="font-size:10px;color:#999;margin:4px 0 0;">미입력 시 기존 Page N 표기 유지</p>
+  </div>
+
+  <div class="sec">
+    <h3>📰 뉴스 검색</h3>
+    <div class="date-row">
+      <div style="flex:1;"><label>시작일</label><input type="date" id="nwsFrom" class="inp" style="padding:4px 6px;"></div>
+      <div style="flex:1;"><label>종료일</label><input type="date" id="nwsTo"   class="inp" style="padding:4px 6px;"></div>
+    </div>
+    <input type="text" id="nwsKw" class="inp" placeholder="키워드 (미입력 시 중고차)">
+    <details style="margin:5px 0 0;"><summary style="font-size:10px;color:#7aaac8;cursor:pointer;user-select:none;">⚙️ 뉴스 검색 설정 (클릭하여 펼치기)</summary>
+      <div style="margin-top:5px;">
+        <p style="font-size:10px;color:#7aaac8;margin:0 0 3px;">🔑 GNews API 키 <span style="color:#5a8aaa;">(gnews.io 무료)</span></p>
+        <input type="text" id="nwsApiKey" class="inp" placeholder="API 키 입력 시 가장 안정적">
+        <p style="font-size:10px;color:#5a8aaa;margin:4px 0 3px;">🌐 커스텀 프록시 URL <span style="color:#5a8aaa;">(Cloudflare Worker)</span></p>
+        <input type="text" id="nwsProxy" class="inp" placeholder="https://my-proxy.xxx.workers.dev">
+        <p style="font-size:10px;color:#5a8aaa;margin:3px 0 0;line-height:1.5;">프록시 배포 방법: cloudflare-worker-proxy.js 파일 참고</p>
+      </div>
+    </details>
+    <button class="btn btn-red" onclick="fetchNews()" style="margin-top:5px;">🔍 실시간 뉴스 가져오기</button>
+    <div id="nwsSt"></div>
+    <div class="nws-box" id="nwsPicker">
+      <p style="text-align:center;color:gray;padding:12px 0;font-size:11px;">날짜 또는 키워드 입력 후 검색.</p>
+    </div>
+    <div class="manual-sec">
+      <p>📝 직접 입력</p>
+      <input type="text" id="mT" class="inp" placeholder="뉴스 제목" style="margin-bottom:3px;">
+      <input type="text" id="mS" class="inp" placeholder="요약 (선택)" style="margin-bottom:3px;">
+      <input type="text" id="mL" class="inp" placeholder="링크 (선택)">
+      <button class="btn btn-gray" onclick="addManualNews()" style="margin-top:4px;">+ 직접 추가</button>
+    </div>
+  </div>
+
+
+
+  <div class="sec">
+    <h3>💾 저장 및 발행</h3>
+    <button class="btn btn-green"  onclick="saveState()">💾 현재 상태 저장</button>
+    <div class="save-st" id="saveSt"></div>
+    <div style="border-top:1px solid var(--navy3);margin:8px 0 6px;"></div>
+    <p style="font-size:10px;color:#7aaac8;margin:0 0 4px;">👥 팀 공유</p>
+    <button class="btn btn-green"  onclick="exportShare()" style="background:#1a5a7a;">📤 공유파일 내보내기</button>
+    <button class="btn btn-dark"   onclick="importShare()" style="margin-top:4px;">📂 공유파일 가져오기</button>
+    <div class="save-st" id="shareSt"></div>
+    <div style="border-top:1px solid var(--navy3);margin:8px 0 6px;"></div>
+    <button class="btn btn-blue"   onclick="downloadHTML()" style="margin-top:0;">📥 HTML 다운로드</button>
+    <button class="btn btn-orange" onclick="togglePreview()" id="pvToggle" style="margin-top:6px;">👁️ 미리보기</button>
+    <button class="btn btn-dark"   onclick="window.print()"  style="margin-top:4px;">🖨️ PDF 인쇄</button>
+    <button class="btn btn-gray"   onclick="resetAll()"      style="margin-top:7px;font-size:11px;">⚠️ 초기화</button>
+  </div>
+</div>
+<div id="sbResizer"></div>
+
+<div class="preview-area">
+  <div class="preview" id="preview"></div>
+  <div class="add-page-bar">
+    <button id="addPgBtn" onclick="addPage()">＋ 새 페이지 추가</button>
+  </div>
+</div>
+
+<div id="pvBar">
+  <span>👁️ 미리보기 모드</span>
+  <button class="pv-print" onclick="window.print()">🖨️ 인쇄 / PDF</button>
+  <button onclick="togglePreview()">← 편집으로 돌아가기</button>
+</div>
+
+<div id="clipHint">✂ 이미지 잘라냄 — 대상 챕터에서 Ctrl+V 또는 📋 붙여넣기</div>
+
+<div id="tblGrid">
+  <div id="tblGridCells"></div>
+  <div id="tblGridLabel">표를 삽입할 크기를 선택하세요</div>
+</div>
+
+<div id="tblTb">
+  <button onclick="tblRow(-1)">↑행추가</button>
+  <button onclick="tblRow(1)">↓행추가</button>
+  <button onclick="tblRowDel()">행삭제</button>
+  <div class="tb-sep2"></div>
+  <button onclick="tblCol(-1)">←열추가</button>
+  <button onclick="tblCol(1)">→열추가</button>
+  <button onclick="tblColDel()">열삭제</button>
+  <div class="tb-sep2"></div>
+  <button class="tb-del" onclick="tblDel()">🗑표삭제</button>
+</div>
+
+<div class="modal-bg" id="chartModal">
+  <div class="modal">
+    <h3>📊 차트 데이터 입력</h3>
+    <div style="display:flex;gap:10px;margin-bottom:10px;font-size:12px;">
+      <label><input type="radio" name="ct" value="bar" checked> 막대</label>
+      <label><input type="radio" name="ct" value="line"> 선</label>
+      <label><input type="radio" name="ct" value="pie"> 파이</label>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:5px;font-size:11px;color:#7aaac8;">
+      <div style="flex:2">항목명</div><div style="flex:1">값</div><div style="width:28px;"></div>
+    </div>
+    <div id="chartRows"></div>
+    <button onclick="addChartRow()" class="btn btn-gray" style="margin-top:5px;padding:5px;">+ 행 추가</button>
+    <div class="modal-ft">
+      <button class="btn btn-blue" style="width:auto;padding:7px 18px;" onclick="confirmChart()">차트 생성</button>
+      <button class="btn btn-gray" style="width:auto;padding:7px 18px;" onclick="closeChartModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const LOGO_SRC = "data:image/png;base64,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";
+
+let pageCount=0, selNews=[], newsPool=[], selImg=null, drag=null;
+let chartTgt=null, tblTargetBody=null, curCell=null;
+let clipImg=null, pvMode=false;
+let clipHintTimer=null;
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function getDateStr(){ const v=document.getElementById('pubMonth').value; if(!v)return'2026.04'; const[y,m]=v.split('-');return`${y}.${m}`; }
+function applyDate(){ document.querySelectorAll('.date-top').forEach(e=>e.textContent=getDateStr()); }
+
+// ── 페이지 생성
+function createPage(n){
+  const container=document.getElementById('preview');
+  const wrap=document.createElement('div');
+  wrap.className='page-wrap'; wrap.dataset.page=n;
+  wrap.innerHTML=`
+    <div class="page-lbl">PAGE ${n}</div>
+    <div class="page-acts">${n>1?'<button class="pg-del" onclick="removePage(this)">✕</button>':''}</div>
+    <div class="page" id="page${n}">
+      <div class="pg-hdr">
+
+        <div class="hdr-logo-wrap" onclick="hdrLogoClick(this)"><div class="hdr-logo-ph">🖼 로고<br>클릭하여 추가</div><img class="hdr-logo-img" src="" draggable="false"><div class="hdr-logo-h"></div><button class="hdr-logo-del" onclick="hdrLogoDel(event,this)" title="삭제">✕</button></div>
+        <div class="ttl-main" contenteditable="true" spellcheck="false">월 간 엔 카</div>
+        <div class="date-top" contenteditable="true" spellcheck="false">${getDateStr()}</div>
+      </div>
+      <div class="pg-content" id="ct${n}">
+        <div class="add-ch-bar"><button class="add-ch-btn" onclick="addChapter(this)">＋ 챕터 추가</button></div>
+      </div>
+      <div class="pg-ftr">
+        <span contenteditable="true" spellcheck="false">Page ${n}</span>
+        <span contenteditable="true" spellcheck="false">www.encar.com</span>
+      </div>
+    </div>`;
+  container.appendChild(wrap);
+  pageCount=Math.max(pageCount,n);
+  initChSort(wrap.querySelector(`#ct${n}`));
+  return wrap;
+}
+function addPage(){ createPage(pageCount+1); }
+function removePage(btn){
+  if(!confirm('이 페이지를 삭제하시겠습니까?'))return;
+  btn.closest('.page-wrap').remove();
+  let n=1;
+  document.querySelectorAll('.page-wrap[data-page]').forEach(w=>{
+    w.dataset.page=n;
+    const l=w.querySelector('.page-lbl');if(l)l.textContent=`PAGE ${n}`;
+    if(n===1){const d=w.querySelector('.pg-del');if(d)d.remove();}
+    n++;
+  });
+  pageCount=n-1;
+}
+
+function applyContact(){
+  const name=document.getElementById('ctName').value.trim();
+  const phone=document.getElementById('ctPhone').value.trim();
+  let n=1;
+  document.querySelectorAll('.page-wrap[data-page]').forEach(wrap=>{
+    const ftr=wrap.querySelector('.pg-ftr span:first-child');
+    if(ftr)ftr.textContent=(name||phone)?[name,phone].filter(Boolean).join(' / '):`Page ${n}`;
+    n++;
+  });
+}
+
+function togglePreview(){
+  pvMode=!pvMode;
+  document.getElementById('sidebar').classList.toggle('hidden',pvMode);
+  document.getElementById('pvBar').classList.toggle('show',pvMode);
+  document.getElementById('preview').classList.toggle('pv-mode',pvMode);
+  document.getElementById('pvToggle').textContent=pvMode?'← 편집 모드로':'👁️ 미리보기';
+}
+
+function initChSort(ct){ Sortable.create(ct,{animation:150,handle:'.ch-drag',draggable:'.ch-block',ghostClass:'sortable-ghost'}); }
+
+function addChapter(btn){
+  const ct=btn.closest('.pg-content'), bar=btn.closest('.add-ch-bar');
+  const inp=document.createElement('input');
+  inp.type='text'; inp.className='ch-name-inp'; inp.placeholder='챕터 이름 입력 후 Enter';
+  btn.style.display='none'; bar.appendChild(inp); inp.focus();
+  const commit=()=>{ const name=inp.value.trim(); inp.remove(); btn.style.display=''; if(name)insertChBlock(ct,bar,name); };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();commit();} if(e.key==='Escape'){inp.remove();btn.style.display='';} });
+  inp.addEventListener('blur',commit);
+}
+
+// ── 헤더 로고 업로드/크기조절
+function hdrLogoClick(wrap){
+  if(wrap.classList.contains('has-img'))return;
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{
+    const file=inp.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=wrap.querySelector('.hdr-logo-img');
+      img.src=ev.target.result;img.style.height='52px';img.style.width='auto';
+      wrap.classList.add('has-img');
+      setupHdrLogoResize(wrap);
+    };
+    reader.readAsDataURL(file);
+  };
+  inp.click();
+}
+function hdrLogoDel(e,btn){
+  e.stopPropagation();
+  const wrap=btn.closest('.hdr-logo-wrap');
+  const img=wrap.querySelector('.hdr-logo-img');
+  img.src='';img.style.height='';img.style.width='';
+  wrap.classList.remove('has-img');
+}
+function setupHdrLogoResize(wrap){
+  const h=wrap.querySelector('.hdr-logo-h'),img=wrap.querySelector('.hdr-logo-img');
+  if(!h||!img)return;
+  h.addEventListener('mousedown',e=>{
+    e.preventDefault();e.stopPropagation();
+    drag={type:'hdrlogo',el:img,sx:e.clientX,sw:img.offsetWidth,sh:img.offsetHeight};
+  });
+}
+
+function insertChBlock(ct,bar,name){
+  const block=document.createElement('div');
+  block.className='ch-block';
+  block.innerHTML=`
+    <div class="ch-hdr">
+      <span class="ch-drag" title="드래그로 순서 변경">⠿</span>
+      <div class="ch-name" contenteditable="true" spellcheck="false">${esc(name)}</div>
+      <button class="ch-del" onclick="removeChapter(this)" title="챕터 삭제">✕</button>
+    </div>
+    <div class="ch-tb">
+      <button class="tb-btn tb-b" onmousedown="fmt(event,'bold')"                title="굵게">B</button>
+      <button class="tb-btn tb-i" onmousedown="fmt(event,'italic')"              title="기울임">I</button>
+      <button class="tb-btn tb-u" onmousedown="fmt(event,'underline')"           title="밑줄">U</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" onmousedown="fmt(event,'insertUnorderedList')"      title="글머리 기호">≡</button>
+      <button class="tb-btn" onmousedown="fmt(event,'insertOrderedList')"        title="번호 목록">1.</button>
+      <div class="tb-sep"></div>
+      <select class="tb-sel" onchange="fmtSz(event,this)" title="글자 크기">
+        <option value="">크기</option>
+        <option value="1">아주 작게</option><option value="2">작게</option>
+        <option value="3">보통</option><option value="4">크게</option><option value="5">아주 크게</option>
+      </select>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" onmousedown="insertTbl(event,this)"           title="표 삽입">📋 표</button>
+      <button class="tb-btn" onmousedown="openChartModal(event,this)"      title="차트 삽입">📊 차트</button>
+      <button class="tb-btn" onmousedown="insertNewsToBody(event,this)"    title="선택된 뉴스 삽입">📰 뉴스</button>
+      <button class="tb-btn" onmousedown="insertImgFromToolbar(event,this)" title="이미지 첨부">🖼 이미지</button>
+      <button class="tb-btn paste-btn" onmousedown="pasteImg(event,this)"  title="잘라낸 이미지 없음">📋 붙여넣기</button>
+    </div>
+    <div class="ch-body-wrap">
+      <div class="ch-body" contenteditable="true" spellcheck="false" data-ph="내용을 입력하세요..."></div>
+    </div>`;
+  ct.insertBefore(block,bar);
+  block.addEventListener('focusin',()=>{ document.querySelectorAll('.ch-block.active').forEach(b=>b.classList.remove('active')); block.classList.add('active'); });
+  initChImgDrop(block);
+  block.querySelector('.ch-body').focus();
+}
+function removeChapter(btn){ if(confirm('이 챕터를 삭제하시겠습니까?'))btn.closest('.ch-block').remove(); }
+
+function fmt(e,cmd){ e.preventDefault(); document.execCommand(cmd,false,null); }
+function fmtSz(e,sel){ e.preventDefault(); if(sel.value){document.execCommand('fontSize',false,sel.value);sel.value='';} }
+
+// ── 사이드바 리사이즈
+document.getElementById('sbResizer').addEventListener('mousedown',e=>{
+  e.preventDefault();
+  const sb=document.getElementById('sidebar');
+  drag={type:'sidebar',el:sb,startX:e.clientX,startW:sb.offsetWidth};
+  document.getElementById('sbResizer').classList.add('dragging');
+});
+
+// ── 표 그리드 피커
+function initTblGrid(){
+  const cells=document.getElementById('tblGridCells'), label=document.getElementById('tblGridLabel');
+  cells.innerHTML='';
+  for(let r=1;r<=8;r++) for(let c=1;c<=10;c++){
+    const cell=document.createElement('div');
+    cell.className='tg-cell'; cell.dataset.r=r; cell.dataset.c=c;
+    cell.addEventListener('mouseover',()=>{ cells.querySelectorAll('.tg-cell').forEach(d=>d.classList.toggle('hl',(+d.dataset.r<=r)&&(+d.dataset.c<=c))); label.textContent=`${r}행 × ${c}열`; });
+    cell.addEventListener('click',()=>{
+      document.getElementById('tblGrid').style.display='none';
+      if(!tblTargetBody)return;
+      tblTargetBody.focus();
+      let html='<table><thead><tr>';
+      for(let ci=0;ci<c;ci++)html+=`<th>항목${ci+1}</th>`;
+      html+='</tr></thead><tbody>';
+      for(let ri=1;ri<r;ri++){ html+='<tr>'; for(let ci=0;ci<c;ci++)html+='<td>-</td>'; html+='</tr>'; }
+      html+='</tbody></table><p></p>';
+      document.execCommand('insertHTML',false,html);
+      tblTargetBody=null;
+    });
+    cells.appendChild(cell);
+  }
+}
+function insertTbl(e,btn){
+  e.preventDefault();
+  tblTargetBody=btn.closest('.ch-block').querySelector('.ch-body');
+  const grid=document.getElementById('tblGrid'), rect=btn.getBoundingClientRect();
+  document.querySelectorAll('.tg-cell').forEach(d=>d.classList.remove('hl'));
+  document.getElementById('tblGridLabel').textContent='표를 삽입할 크기를 선택하세요';
+  grid.style.display='block'; grid.style.top=(rect.bottom+4)+'px'; grid.style.left=rect.left+'px';
+}
+
+// ── 표 관리
+function showTblTb(cell){ curCell=cell; const tb=document.getElementById('tblTb'),rect=cell.getBoundingClientRect(); tb.style.display='flex'; tb.style.top=(rect.top-38)+'px'; tb.style.left=rect.left+'px'; }
+function hideTblTb(){ document.getElementById('tblTb').style.display='none'; curCell=null; }
+function tblRow(dir){ if(!curCell)return; const tr=curCell.closest('tr'),newRow=document.createElement('tr'); for(let i=0;i<tr.cells.length;i++){const td=document.createElement('td');td.textContent='-';newRow.appendChild(td);} if(dir<0)tr.parentNode.insertBefore(newRow,tr);else tr.after(newRow); }
+function tblRowDel(){ if(!curCell)return; const tr=curCell.closest('tr'); if(tr.parentNode.rows.length<=1){if(confirm('마지막 행입니다. 표를 삭제하시겠습니까?'))tblDel();return;} tr.remove();hideTblTb(); }
+function tblCol(dir){ if(!curCell)return; const ci=curCell.cellIndex; curCell.closest('table').querySelectorAll('tr').forEach(tr=>{ const td=document.createElement(tr.cells[ci]?.tagName==='TH'?'th':'td'); td.textContent=tr.cells[ci]?.tagName==='TH'?'항목':'-'; if(tr.cells[ci]){if(dir<0)tr.cells[ci].before(td);else tr.cells[ci].after(td);} }); }
+function tblColDel(){ if(!curCell)return; const ci=curCell.cellIndex,table=curCell.closest('table'); if(table.rows[0]&&table.rows[0].cells.length<=1){if(confirm('마지막 열입니다. 표를 삭제하시겠습니까?'))tblDel();return;} table.querySelectorAll('tr').forEach(tr=>{if(tr.cells[ci])tr.cells[ci].remove();}); hideTblTb(); }
+function tblDel(){ if(!curCell)return; if(confirm('표 전체를 삭제하시겠습니까?')){curCell.closest('table').remove();hideTblTb();} }
+
+// ── 뉴스 삽입 (QR)
+function insertNewsToBody(e,btn){
+  e.preventDefault();
+  if(!selNews.length){alert('좌측에서 뉴스를 먼저 선택해주세요.');return;}
+  const body=btn.closest('.ch-block').querySelector('.ch-body'); body.focus();
+  const html=selNews.map(n=>{
+    const bullets=n.summary?n.summary.split(/[.。]/).map(s=>s.trim()).filter(s=>s.length>5).slice(0,3).map(s=>`<li style="margin-bottom:3px;">${esc(s)}</li>`).join(''):'';
+    const qr=n.link?`<div style="text-align:center;min-width:90px;padding-left:10px;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(n.link)}" width="80" height="80" alt="QR" style="display:block;border:1px solid #eee;"><div style="font-size:9px;color:#888;margin-top:2px;">기사 바로가기</div></div>`:'';
+    return `<div style="display:flex;gap:8px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #eee;align-items:flex-start;"><div style="flex:1;min-width:0;"><div style="font-weight:bold;font-size:12px;padding-bottom:4px;border-bottom:1px solid #333;margin-bottom:5px;">${esc(n.title)}</div>${bullets?`<ul style="margin:0;padding-left:16px;font-size:11px;color:#444;line-height:1.7;">${bullets}</ul>`:''}${n.pubDate?`<div style="font-size:10px;color:#aaa;margin-top:4px;">${esc(n.pubDate)}</div>`:''}</div>${qr}</div>`;
+  }).join('');
+  document.execCommand('insertHTML',false,html);
+}
+
+// ── 차트
+function openChartModal(e,btn){ e.preventDefault(); chartTgt=btn.closest('.ch-block'); const rows=document.getElementById('chartRows');rows.innerHTML=''; [['방문_웹',97],['방문_모바일',256],['방문수_웹',119],['방문수_모바일',583]].forEach(([l,v])=>addChartRow(l,v)); document.getElementById('chartModal').classList.add('show'); }
+function addChartRow(label='',value=''){ const rows=document.getElementById('chartRows'),row=document.createElement('div');row.className='ch-data-row';row.innerHTML=`<input type="text" class="li" value="${esc(String(label))}" placeholder="항목명"><input type="number" class="vi" value="${value}" placeholder="값"><button onclick="this.closest('.ch-data-row').remove()">✕</button>`;rows.appendChild(row); }
+function closeChartModal(){ document.getElementById('chartModal').classList.remove('show');chartTgt=null; }
+function confirmChart(){
+  if(!chartTgt)return;
+  const labels=[],data=[];
+  document.querySelectorAll('#chartRows .ch-data-row').forEach(r=>{ const l=r.querySelector('.li').value.trim(),v=parseFloat(r.querySelector('.vi').value)||0; if(l){labels.push(l);data.push(v);} });
+  if(!labels.length){alert('데이터를 입력해주세요.');return;}
+  const type=document.querySelector('input[name="ct"]:checked').value;
+  const body=chartTgt.querySelector('.ch-body');
+  const wrap=document.createElement('div');wrap.style.cssText='margin:8px 0;position:relative;';
+  const canvas=document.createElement('canvas');canvas.style.maxHeight='200px';
+  const delB=document.createElement('button');delB.textContent='차트 삭제';delB.className='chart-del-btn';delB.style.cssText='position:absolute;top:4px;right:4px;font-size:10px;background:#fff;border:1px solid #ccc;padding:2px 6px;cursor:pointer;border-radius:3px;display:none;z-index:5;';delB.onclick=()=>wrap.remove();
+  wrap.appendChild(canvas);wrap.appendChild(delB);
+  wrap.addEventListener('mouseenter',()=>delB.style.display='block');wrap.addEventListener('mouseleave',()=>delB.style.display='none');
+  body.after(wrap);
+  const colors=['#8ea9db','#ed7d31','#70ad47','#ffc000','#5b9bd5','#a5a5a5'];
+  new Chart(canvas,{type,data:{labels,datasets:[{data,backgroundColor:type==='line'?undefined:labels.map((_,i)=>colors[i%colors.length]),borderColor:type==='line'?'#0ea5e9':undefined,fill:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  closeChartModal();
+}
+
+// ════════════════════
+// 이미지 시스템 — ch-body-wrap 기반
+// ════════════════════
+
+function initChImgDrop(chBlock){
+  const wrap=chBlock.querySelector('.ch-body-wrap');
+  chBlock.addEventListener('dragover',e=>{ if(e.dataTransfer.types.includes('Files')){e.preventDefault();wrap.classList.add('dov');} });
+  chBlock.addEventListener('dragleave',e=>{ if(!chBlock.contains(e.relatedTarget))wrap.classList.remove('dov'); });
+  chBlock.addEventListener('drop',e=>{
+    wrap.classList.remove('dov');
+    const file=e.dataTransfer.files[0];
+    if(!file||!file.type.startsWith('image/'))return;
+    e.preventDefault();
+    const reader=new FileReader();
+    reader.onload=ev=>createFI(chBlock,ev.target.result,10,10);
+    reader.readAsDataURL(file);
+  });
+}
+
+function insertImgFromToolbar(e,btn){
+  e.preventDefault();
+  const chBlock=btn.closest('.ch-block');
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{ const file=inp.files[0];if(!file)return; const reader=new FileReader();reader.onload=ev=>createFI(chBlock,ev.target.result,10,10);reader.readAsDataURL(file); };
+  inp.click();
+}
+
+function createFI(chBlock,src,x,y,w=200,h=150){
+  const wrap=chBlock.querySelector('.ch-body-wrap');
+  const el=document.createElement('div');
+  el.className='fi';
+  el.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+  el.innerHTML=`<img src="${src}" alt="" draggable="false">
+    <div class="fi-h" data-d="nw"></div><div class="fi-h" data-d="ne"></div>
+    <div class="fi-h" data-d="sw"></div><div class="fi-h" data-d="se"></div>
+    <button class="fi-cut" onclick="cutFI(this)" title="잘라내기 (Ctrl+X)">✂</button>
+    <button class="fi-del" onclick="deleteFI(this)" title="삭제">✕</button>`;
+  wrap.appendChild(el);
+  setupFI(el,wrap);
+  deselImg(); selImg=el; el.classList.add('sel');
+  setTimeout(()=>updateWrapHeight(wrap),50);
+}
+
+function setupFI(el,wrap){
+  el.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('fi-h')||e.target.classList.contains('fi-del')||e.target.classList.contains('fi-cut'))return;
+    e.preventDefault();e.stopPropagation();
+    deselImg(); selImg=el; el.classList.add('sel');
+    drag={type:'move',el,wrap,sx:e.clientX,sy:e.clientY,sl:el.offsetLeft,st:el.offsetTop};
+  });
+  el.querySelectorAll('.fi-h').forEach(h=>{
+    h.addEventListener('mousedown',e=>{
+      e.preventDefault();e.stopPropagation();
+      drag={type:'resize',el,wrap,dir:h.dataset.d,sx:e.clientX,sy:e.clientY,sw:el.offsetWidth,sh:el.offsetHeight,sl:el.offsetLeft,st:el.offsetTop,ratio:el.offsetWidth/el.offsetHeight};
+    });
+  });
+}
+
+function updateWrapHeight(wrap){
+  if(!wrap)return;
+  let maxBottom=0;
+  wrap.querySelectorAll(':scope>.fi').forEach(fi=>{ const b=(parseFloat(fi.style.top)||0)+fi.offsetHeight; maxBottom=Math.max(maxBottom,b); });
+  wrap.style.minHeight=maxBottom>0?(maxBottom+10)+'px':'';
+}
+
+document.addEventListener('mousemove',e=>{
+  if(!drag)return;
+  const{type,el,wrap,sx,sy,sl,st,sw,sh,dir,ratio}=drag;
+  if(type==='hdrlogo'){
+    const nw=Math.max(40,drag.sw+(e.clientX-drag.sx));
+    const r2=drag.sh/drag.sw||1;
+    drag.el.style.width=nw+'px';drag.el.style.height=(nw*r2)+'px';
+    return;
+  }
+  if(type==='sidebar'){
+    const nw=Math.max(160,Math.min(520,drag.startW+(e.clientX-drag.startX)));
+    drag.el.style.width=nw+'px';drag.el.style.minWidth=nw+'px';
+    return;
+  }
+  const dx=e.clientX-sx,dy=e.clientY-sy;
+  if(type==='move'){
+    const maxX=Math.max(0,wrap.offsetWidth-el.offsetWidth);
+    el.style.left=Math.max(0,Math.min(maxX,sl+dx))+'px';
+    el.style.top=Math.max(0,st+dy)+'px';
+  } else {
+    let nw=sw,nh=sh,nl=sl,nt=st;
+    if(e.shiftKey){
+      if(dir.includes('e')||dir.includes('w')){ nw=Math.max(50,dir.includes('e')?sw+dx:sw-dx);nh=nw/ratio; } else { nh=Math.max(40,dir.includes('s')?sh+dy:sh-dy);nw=nh*ratio; }
+      if(dir.includes('w'))nl=sl+sw-nw; if(dir.includes('n'))nt=st+sh-nh;
+    } else {
+      if(dir.includes('e'))nw=Math.max(50,sw+dx); if(dir.includes('s'))nh=Math.max(40,sh+dy);
+      if(dir.includes('w')){nw=Math.max(50,sw-dx);nl=sl+sw-nw;} if(dir.includes('n')){nh=Math.max(40,sh-dy);nt=st+sh-nh;}
+    }
+    if(nl<0){nw+=nl;nl=0;} if(nl+nw>wrap.offsetWidth)nw=wrap.offsetWidth-nl;
+    el.style.width=nw+'px';el.style.height=nh+'px';el.style.left=nl+'px';el.style.top=nt+'px';
+  }
+});
+document.addEventListener('mouseup',()=>{ if(drag&&drag.wrap)updateWrapHeight(drag.wrap); document.getElementById('sbResizer')?.classList.remove('dragging'); drag=null; });
+
+// Delete/Backspace 키로 선택 이미지 삭제
+document.addEventListener('keydown',e=>{
+  const act=document.activeElement;
+  const typing=act&&(act.isContentEditable||act.tagName==='INPUT'||act.tagName==='TEXTAREA');
+
+  // Ctrl+X: 선택된 이미지 잘라내기
+  if((e.ctrlKey||e.metaKey)&&e.key==='x'&&selImg){
+    e.preventDefault();
+    cutFI(selImg.querySelector('.fi-cut'));
+    return;
+  }
+  // Ctrl+V: 클립보드에 이미지가 있으면 현재 활성 챕터에 붙여넣기
+  if((e.ctrlKey||e.metaKey)&&e.key==='v'&&clipImg){
+    const activeBlock=document.querySelector('.ch-block.active')||document.querySelector('.ch-block');
+    if(activeBlock){
+      e.preventDefault();
+      createFI(activeBlock,clipImg.src,10,10,clipImg.w,clipImg.h);
+    }
+    return;
+  }
+  // Delete/Backspace: 이미지 삭제
+  if((e.key==='Delete'||e.key==='Backspace')&&selImg&&!typing){
+    deleteFI(selImg.querySelector('.fi-del'));e.preventDefault();
+  }
+});
+
+function deselImg(){ if(selImg)selImg.classList.remove('sel'); selImg=null; }
+function deleteFI(btn){ const el=btn.closest('.fi'),wrap=el.parentElement; if(selImg===el)deselImg(); el.remove(); updateWrapHeight(wrap); }
+
+// 잘라내기 / 붙여넣기
+function cutFI(btn){
+  const el=btn.closest('.fi');
+  clipImg={src:el.querySelector('img').src,w:el.offsetWidth,h:el.offsetHeight};
+  const wrap=el.parentElement;
+  if(selImg===el)deselImg();
+  el.remove(); updateWrapHeight(wrap);
+  updatePasteBtns();
+  showClipHint();
+}
+function showClipHint(){
+  const hint=document.getElementById('clipHint');
+  hint.classList.add('show');
+  clearTimeout(clipHintTimer);
+  clipHintTimer=setTimeout(()=>hint.classList.remove('show'),3500);
+}
+function updatePasteBtns(){
+  document.querySelectorAll('.paste-btn').forEach(b=>{ b.classList.toggle('active',!!clipImg); b.title=clipImg?'이미지 붙여넣기 (Ctrl+V)':'잘라낸 이미지 없음'; });
+}
+function pasteImg(e,btn){
+  e.preventDefault();
+  if(!clipImg){alert('잘라낸 이미지가 없습니다.\n이미지 선택 후 ✂ 버튼 또는 Ctrl+X를 누르세요.');return;}
+  createFI(btn.closest('.ch-block'),clipImg.src,10,10,clipImg.w,clipImg.h);
+  updatePasteBtns();
+}
+
+// 전역 클릭
+document.addEventListener('click',e=>{
+  const grid=document.getElementById('tblGrid');
+  if(grid.style.display==='block'&&!e.target.closest('#tblGrid')&&!e.target.closest('[title="표 삽입"]')){grid.style.display='none';tblTargetBody=null;}
+  const cell=e.target.closest('td,th');
+  if(cell&&cell.closest('.ch-body'))showTblTb(cell); else if(!e.target.closest('#tblTb'))hideTblTb();
+  if(!e.target.closest('.fi'))deselImg();
+});
+
+// ── 뉴스 검색
+async function fetchNews(){
+  const kw=document.getElementById('nwsKw').value.trim()||'중고차';
+  const fromVal=document.getElementById('nwsFrom').value,toVal=document.getElementById('nwsTo').value;
+  const apiKey=(document.getElementById('nwsApiKey')?.value||'').trim();
+  const picker=document.getElementById('nwsPicker'),st=document.getElementById('nwsSt');
+  picker.innerHTML='<p style="text-align:center;color:#7aaac8;padding:12px;font-size:11px;">검색 중...</p>';st.textContent='';
+  function parseItems(items){
+    return items.map((item,i)=>{
+      const title=(item.querySelector('title')?.textContent||'').replace(/<[^>]+>/g,'').trim();
+      const rl=item.querySelector('link');
+      const link=rl?rl.nextSibling?.textContent?.trim()||rl.textContent.trim():'';
+      const desc=(item.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim().substring(0,200);
+      const pub=item.querySelector('pubDate')?.textContent||'';
+      return{id:Date.now()+i,title,summary:desc,link,pubDate:pub?new Date(pub).toISOString().substring(0,10):''};
+    }).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+  }
+  try{
+    // ── 방법 0: Electron 백엔드 (CORS 없음 — 가장 안정적)
+    if(window.electronAPI?.isElectron){
+      let q2=kw;
+      if(fromVal)q2+=` after:${fromVal}`;else if(!toVal){const d=new Date();d.setMonth(d.getMonth()-3);q2+=` after:${d.toISOString().substring(0,10)}`;}
+      if(toVal)q2+=` before:${toVal}`;
+      const rssUrl2=`https://news.google.com/rss/search?q=${encodeURIComponent(q2)}&hl=ko&gl=KR&ceid=KR:ko`;
+      const text2=await window.electronAPI.fetchRSS(rssUrl2);
+      if(!text2||!text2.includes('<item>'))throw new Error('뉴스 결과 없음');
+      const xml2=(new DOMParser()).parseFromString(text2,'text/xml');
+      newsPool=parseItems(Array.from(xml2.querySelectorAll('item')));
+      if(!newsPool.length)throw new Error('파싱 결과 없음');
+      st.textContent=`✅ ${newsPool.length}건 (최신순)`;renderPicker();
+      return;
+    }
+    // ── 방법 A: GNews API (API 키 있을 때 — 안정적)
+    if(apiKey){
+      let gUrl=`https://gnews.io/api/v4/search?q=${encodeURIComponent(kw)}&lang=ko&max=30&token=${apiKey}`;
+      if(fromVal)gUrl+=`&from=${fromVal}T00:00:00Z`;
+      if(toVal)gUrl+=`&to=${toVal}T23:59:59Z`;
+      const r=await fetch(gUrl,{signal:AbortSignal.timeout(12000)});
+      if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(`GNews 오류: ${e.errors?.[0]||r.status}`);}
+      const d=await r.json();
+      newsPool=(d.articles||[]).map((a,i)=>({id:Date.now()+i,title:a.title||'',summary:(a.description||'').substring(0,200),link:a.url||'',pubDate:(a.publishedAt||'').substring(0,10)})).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+      if(!newsPool.length)throw new Error('검색 결과 없음');
+      st.textContent=`✅ ${newsPool.length}건 (GNews)`;renderPicker();return;
+    }
+    // ── 방법 B: CORS 프록시로 Google News RSS 시도
+    let query=kw;
+    if(fromVal)query+=` after:${fromVal}`;else if(!toVal){const d=new Date();d.setMonth(d.getMonth()-3);query+=` after:${d.toISOString().substring(0,10)}`;}
+    if(toVal)query+=` before:${toVal}`;
+    const rssUrl=`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
+    let text=null;
+    const proxies=[
+      [()=>fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),true],
+      [()=>fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),false],
+      [()=>fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),false],
+    ];
+    for(const [fn,isJson] of proxies){
+      try{
+        const r=await fn();if(!r.ok)continue;
+        const t=isJson?(await r.json()).contents:await r.text();
+        if(t&&t.includes('<item>')){text=t;break;}
+      }catch(e){}
+    }
+    if(text){
+      const xml=(new DOMParser()).parseFromString(text,'text/xml');
+      const items=Array.from(xml.querySelectorAll('item'));
+      newsPool=parseItems(items);
+      if(newsPool.length){st.textContent=`✅ ${newsPool.length}건 (최신순)`;renderPicker();return;}
+    }
+    // ── 안내: API 키 없이 불가
+    st.textContent='⚠️ 브라우저 보안(CORS)으로 검색 불가';
+    picker.innerHTML='<p style="font-size:11px;color:#9e8880;padding:8px;line-height:1.7;">구글 뉴스 RSS가 브라우저에서 직접 차단됩니다.<br>🔑 <b>API 키 설정</b>을 펼쳐 <a href="https://gnews.io" target="_blank" style="color:#4fc3f7;">gnews.io</a> 무료 키를 입력하면 정상 작동합니다.<br><span style="color:#5a8aaa;">또는 아래 직접 입력을 이용하세요.</span></p>';
+  }catch(err){
+    st.textContent='⚠️ '+err.message;
+    picker.innerHTML=`<p style="font-size:11px;color:#9e8880;padding:8px;">${err.message}</p>`;
+  }
+}
+function renderPicker(){ const p=document.getElementById('nwsPicker');p.innerHTML=''; newsPool.forEach(item=>{ const row=document.createElement('div');row.className='nws-row';const uid=`n${item.id}`;const sel=selNews.some(s=>s.id===item.id);row.innerHTML=`<input type="checkbox" id="${uid}" ${sel?'checked':''} onchange="toggleNews(${item.id})"><label for="${uid}"><b>${esc(item.title)}</b><br><span style="color:#888">${item.pubDate}</span></label>`;p.appendChild(row); }); }
+function toggleNews(id){ const item=newsPool.find(n=>n.id===id),idx=selNews.findIndex(s=>s.id===id); if(idx>-1)selNews.splice(idx,1);else if(item)selNews.push(item); }
+function addManualNews(){ const t=document.getElementById('mT').value.trim();if(!t){alert('제목을 입력해주세요.');return;} selNews.push({id:Date.now(),title:t,summary:document.getElementById('mS').value.trim(),link:document.getElementById('mL').value.trim(),pubDate:new Date().toISOString().substring(0,10)}); ['mT','mS','mL'].forEach(id=>document.getElementById(id).value=''); alert(`"${t}" 추가 완료.`); }
+
+// ── 저장/복원
+function saveState(silent=false){
+  try{
+    const s={pubMonth:document.getElementById('pubMonth').value,ctName:document.getElementById('ctName').value,ctPhone:document.getElementById('ctPhone').value,selNews,previewHTML:document.getElementById('preview').innerHTML,savedAt:new Date().toLocaleString('ko-KR')};
+    localStorage.setItem('encarV4',JSON.stringify(s));
+    if(!silent){const el=document.getElementById('saveSt');el.textContent=`✅ ${s.savedAt}`;el.style.color='#4fc3f7';}
+  }catch(err){if(!silent)alert('저장 실패:'+err.message);}
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem('encarV4');if(!raw)return false;
+    const s=JSON.parse(raw);
+    if(s.pubMonth)document.getElementById('pubMonth').value=s.pubMonth;
+    if(s.ctName)document.getElementById('ctName').value=s.ctName;
+    if(s.ctPhone)document.getElementById('ctPhone').value=s.ctPhone;
+    if(s.selNews)selNews=s.selNews;
+    if(s.previewHTML){
+      const preview=document.getElementById('preview');
+      preview.innerHTML=s.previewHTML;
+      const pages=preview.querySelectorAll('.page-wrap[data-page]');
+      if(!pages.length)return false; // 저장된 HTML에 페이지 없으면 새로 생성
+      pageCount=pages.length;
+      pages.forEach(pw=>{
+        const n=+pw.dataset.page;
+        const ct=pw.querySelector(`#ct${n}`);
+        if(ct)initChSort(ct);
+      });
+      preview.querySelectorAll('.ch-block').forEach(chBlock=>{
+        initChImgDrop(chBlock);
+        chBlock.addEventListener('focusin',()=>{
+          document.querySelectorAll('.ch-block.active').forEach(b=>b.classList.remove('active'));
+          chBlock.classList.add('active');
+        });
+        const wrap=chBlock.querySelector('.ch-body-wrap');
+        if(wrap){
+          wrap.querySelectorAll('.fi').forEach(fi=>setupFI(fi,wrap));
+          updateWrapHeight(wrap);
+        }
+      });
+      // 구버전 logo-img(base64) → 새 hdr-logo-wrap으로 자동 교체
+      preview.querySelectorAll('img.logo-img').forEach(oldImg=>{
+        const wrap2=document.createElement('div');
+        wrap2.className='hdr-logo-wrap';
+        wrap2.setAttribute('onclick','hdrLogoClick(this)');
+        wrap2.innerHTML='<div class="hdr-logo-ph">🖼 로고<br>클릭하여 추가</div><img class="hdr-logo-img" src="" draggable="false"><div class="hdr-logo-h"></div><button class="hdr-logo-del" onclick="hdrLogoDel(event,this)" title="삭제">✕</button>';
+        oldImg.parentNode.replaceChild(wrap2,oldImg);
+      });
+      preview.querySelectorAll('.hdr-logo-wrap.has-img').forEach(wrap=>setupHdrLogoResize(wrap));
+      return true;
+    }
+    return false; // previewHTML 없으면 false → createPage(1) 호출
+  }catch(err){console.error('loadState error:',err);return false;}
+}
+
+// ── 팀 공유: 내보내기 / 가져오기
+function exportShare(){
+  try{
+    const s={
+      _version:'encarV4',
+      _exportedAt:new Date().toLocaleString('ko-KR'),
+      pubMonth:document.getElementById('pubMonth').value,
+      ctName:document.getElementById('ctName').value,
+      ctPhone:document.getElementById('ctPhone').value,
+      selNews,
+      previewHTML:document.getElementById('preview').innerHTML
+    };
+    const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    const date=new Date();
+    const fname=`엔카소식지_${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}.json`;
+    a.href=URL.createObjectURL(blob);a.download=fname;a.click();URL.revokeObjectURL(a.href);
+    const st=document.getElementById('shareSt');
+    st.textContent='✅ 내보내기 완료 — 팀원에게 전달하세요';st.style.color='#4fc3f7';
+    setTimeout(()=>st.textContent='',4000);
+  }catch(err){alert('내보내기 실패: '+err.message);}
+}
+function importShare(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=async()=>{
+    const file=inp.files[0];if(!file)return;
+    const st=document.getElementById('shareSt');
+    try{
+      const text=await file.text();
+      const s=JSON.parse(text);
+      if(s._version!=='encarV4')throw new Error('엔카 소식지 파일이 아닙니다');
+      if(!confirm(`"${file.name}" 파일을 불러오면\n현재 작업이 덮어씌워집니다.\n계속할까요?`))return;
+      // 상태 복원 (loadState 로직 재활용)
+      if(s.pubMonth)document.getElementById('pubMonth').value=s.pubMonth;
+      if(s.ctName)document.getElementById('ctName').value=s.ctName;
+      if(s.ctPhone)document.getElementById('ctPhone').value=s.ctPhone;
+      if(s.selNews)selNews=s.selNews;
+      if(s.previewHTML){
+        const preview=document.getElementById('preview');
+        preview.innerHTML=s.previewHTML;
+        const pages=preview.querySelectorAll('.page-wrap[data-page]');
+        pageCount=pages.length;
+        pages.forEach(pw=>{const n=+pw.dataset.page;const ct=pw.querySelector('#ct'+n);if(ct)initChSort(ct);});
+        preview.querySelectorAll('.ch-block').forEach(chBlock=>{
+          initChImgDrop(chBlock);
+          chBlock.addEventListener('focusin',()=>{document.querySelectorAll('.ch-block.active').forEach(b=>b.classList.remove('active'));chBlock.classList.add('active');});
+          const wrap=chBlock.querySelector('.ch-body-wrap');
+          if(wrap){wrap.querySelectorAll('.fi').forEach(fi=>setupFI(fi,wrap));updateWrapHeight(wrap);}
+        });
+        preview.querySelectorAll('img.logo-img').forEach(oldImg=>{
+          const wrap2=document.createElement('div');wrap2.className='hdr-logo-wrap';wrap2.setAttribute('onclick','hdrLogoClick(this)');
+          wrap2.innerHTML='<div class="hdr-logo-ph">🖼 로고<br>클릭하여 추가</div><img class="hdr-logo-img" src="" draggable="false"><div class="hdr-logo-h"></div><button class="hdr-logo-del" onclick="hdrLogoDel(event,this)" title="삭제">✕</button>';
+          oldImg.parentNode.replaceChild(wrap2,oldImg);
+        });
+        preview.querySelectorAll('.hdr-logo-wrap.has-img').forEach(wrap=>setupHdrLogoResize(wrap));
+      }
+      saveState(true); // localStorage도 업데이트
+      st.textContent=`✅ "${file.name}" 불러오기 완료`;st.style.color='#4fc3f7';
+      setTimeout(()=>st.textContent='',4000);
+    }catch(err){
+      st.textContent='⚠️ '+err.message;st.style.color='#e05c2f';
+      setTimeout(()=>st.textContent='',4000);
+    }
+  };
+  inp.click();
+}
+
+function downloadHTML(){
+  const clone=document.documentElement.cloneNode(true);
+  clone.querySelectorAll('.sidebar,.page-lbl,.page-acts,.ch-tb,.ch-del,.ch-drag,.add-ch-bar,.fi-h,.fi-del,.fi-cut,.add-page-bar,#pvBar,#tblTb,#clipHint').forEach(e=>e.remove());
+  clone.querySelectorAll('.ch-block').forEach(e=>e.style.border='none');
+  const blob=new Blob(['<!DOCTYPE html>'+clone.outerHTML],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='encar_newsletter.html';a.click();URL.revokeObjectURL(a.href);
+}
+
+function resetAll(){
+  if(!confirm('모든 내용을 초기화하시겠습니까?\n(저장된 데이터도 삭제됩니다)'))return;
+  localStorage.removeItem('encarV4');
+  location.reload();
+}
+
+// 시작 시 초기화
+initTblGrid();
+if(!loadState())createPage(1);
+</script>
+</body>
+</html

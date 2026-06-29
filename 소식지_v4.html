@@ -247,12 +247,6 @@ input[type="checkbox"], input[type="radio"]{ accent-color:var(--cyan); }
       <div style="flex:1;"><label>종료일</label><input type="date" id="nwsTo"   class="inp" style="padding:4px 6px;"></div>
     </div>
     <input type="text" id="nwsKw" class="inp" placeholder="키워드 (미입력 시 중고차)">
-    <details style="margin:5px 0 0;"><summary style="font-size:10px;color:#7aaac8;cursor:pointer;user-select:none;">🔑 API 키 설정</summary>
-      <div style="margin-top:5px;">
-        <p style="font-size:10px;color:#7aaac8;margin:0 0 3px;">GNews API 키 <a href="https://gnews.io" target="_blank" style="color:#4fc3f7;font-size:10px;">gnews.io 무료 발급 →</a></p>
-        <input type="text" id="nwsApiKey" class="inp" placeholder="API 키를 입력하세요">
-      </div>
-    </details>
     <button class="btn btn-red" onclick="fetchNews()" style="margin-top:5px;">🔍 실시간 뉴스 가져오기</button>
     <div id="nwsSt"></div>
     <div class="nws-box" id="nwsPicker">
@@ -748,32 +742,30 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.fi'))deselImg();
 });
 
-// ── 뉴스 검색
+// ── 뉴스 검색 (rss2json.com 경유 — CORS 지원, API 키 불필요)
 async function fetchNews(){
   const kw=document.getElementById('nwsKw').value.trim()||'중고차';
   const fromVal=document.getElementById('nwsFrom').value,toVal=document.getElementById('nwsTo').value;
-  const apiKey=(document.getElementById('nwsApiKey')?.value||'').trim();
   const picker=document.getElementById('nwsPicker'),st=document.getElementById('nwsSt');
   picker.innerHTML='<p style="text-align:center;color:#7aaac8;padding:12px;font-size:11px;">검색 중...</p>';st.textContent='';
-  if(!apiKey){
-    st.textContent='⚠️ API 키를 먼저 입력해주세요';
-    picker.innerHTML='<p style="font-size:11px;color:#9e8880;padding:8px;line-height:1.8;">위 <b>🔑 API 키 설정</b>을 펼쳐 키를 입력하세요.<br><a href="https://gnews.io" target="_blank" style="color:#4fc3f7;">gnews.io</a>에서 무료로 발급받을 수 있습니다.</p>';
-    return;
-  }
   try{
-    let gUrl=`https://gnews.io/api/v4/search?q=${encodeURIComponent(kw)}&lang=ko&max=30&token=${apiKey}`;
-    if(fromVal)gUrl+=`&from=${fromVal}T00:00:00Z`;
-    if(toVal)gUrl+=`&to=${toVal}T23:59:59Z`;
-    const r=await fetch(gUrl,{signal:AbortSignal.timeout(12000)});
-    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(`GNews 오류: ${e.errors?.[0]||r.status}`);}
+    const rssUrl=`https://news.google.com/rss/search?q=${encodeURIComponent(kw)}&hl=ko&gl=KR&ceid=KR:ko`;
+    const apiUrl=`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=50`;
+    const r=await fetch(apiUrl,{signal:AbortSignal.timeout(15000)});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
     const d=await r.json();
-    newsPool=(d.articles||[]).map((a,i)=>({
+    if(d.status!=='ok')throw new Error(d.message||'피드 불러오기 실패');
+    let items=(d.items||[]).map((a,i)=>({
       id:Date.now()+i,
-      title:a.title||'',
-      summary:(a.description||'').substring(0,200),
-      link:a.url||'',
-      pubDate:(a.publishedAt||'').substring(0,10)
-    })).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+      title:(a.title||'').replace(/<[^>]+>/g,'').trim(),
+      summary:(a.description||'').replace(/<[^>]+>/g,'').trim().substring(0,200),
+      link:a.link||'',
+      pubDate:(a.pubDate||'').substring(0,10)
+    })).filter(n=>n.title);
+    if(fromVal)items=items.filter(n=>n.pubDate>=fromVal);
+    if(toVal)items=items.filter(n=>n.pubDate<=toVal);
+    items.sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+    newsPool=items;
     if(!newsPool.length)throw new Error('검색 결과가 없습니다');
     st.textContent=`✅ ${newsPool.length}건`;
     renderPicker();

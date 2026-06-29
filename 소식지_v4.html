@@ -247,13 +247,10 @@ input[type="checkbox"], input[type="radio"]{ accent-color:var(--cyan); }
       <div style="flex:1;"><label>종료일</label><input type="date" id="nwsTo"   class="inp" style="padding:4px 6px;"></div>
     </div>
     <input type="text" id="nwsKw" class="inp" placeholder="키워드 (미입력 시 중고차)">
-    <details style="margin:5px 0 0;"><summary style="font-size:10px;color:#7aaac8;cursor:pointer;user-select:none;">⚙️ 뉴스 검색 설정 (클릭하여 펼치기)</summary>
+    <details style="margin:5px 0 0;"><summary style="font-size:10px;color:#7aaac8;cursor:pointer;user-select:none;">🔑 API 키 설정</summary>
       <div style="margin-top:5px;">
-        <p style="font-size:10px;color:#7aaac8;margin:0 0 3px;">🔑 GNews API 키 <span style="color:#5a8aaa;">(gnews.io 무료)</span></p>
-        <input type="text" id="nwsApiKey" class="inp" placeholder="API 키 입력 시 가장 안정적">
-        <p style="font-size:10px;color:#5a8aaa;margin:4px 0 3px;">🌐 커스텀 프록시 URL <span style="color:#5a8aaa;">(Cloudflare Worker)</span></p>
-        <input type="text" id="nwsProxy" class="inp" placeholder="https://my-proxy.xxx.workers.dev">
-        <p style="font-size:10px;color:#5a8aaa;margin:3px 0 0;line-height:1.5;">프록시 배포 방법: cloudflare-worker-proxy.js 파일 참고</p>
+        <p style="font-size:10px;color:#7aaac8;margin:0 0 3px;">GNews API 키 <a href="https://gnews.io" target="_blank" style="color:#4fc3f7;font-size:10px;">gnews.io 무료 발급 →</a></p>
+        <input type="text" id="nwsApiKey" class="inp" placeholder="API 키를 입력하세요">
       </div>
     </details>
     <button class="btn btn-red" onclick="fetchNews()" style="margin-top:5px;">🔍 실시간 뉴스 가져오기</button>
@@ -758,70 +755,28 @@ async function fetchNews(){
   const apiKey=(document.getElementById('nwsApiKey')?.value||'').trim();
   const picker=document.getElementById('nwsPicker'),st=document.getElementById('nwsSt');
   picker.innerHTML='<p style="text-align:center;color:#7aaac8;padding:12px;font-size:11px;">검색 중...</p>';st.textContent='';
-  function parseItems(items){
-    return items.map((item,i)=>{
-      const title=(item.querySelector('title')?.textContent||'').replace(/<[^>]+>/g,'').trim();
-      const rl=item.querySelector('link');
-      const link=rl?rl.nextSibling?.textContent?.trim()||rl.textContent.trim():'';
-      const desc=(item.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'').trim().substring(0,200);
-      const pub=item.querySelector('pubDate')?.textContent||'';
-      return{id:Date.now()+i,title,summary:desc,link,pubDate:pub?new Date(pub).toISOString().substring(0,10):''};
-    }).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+  if(!apiKey){
+    st.textContent='⚠️ API 키를 먼저 입력해주세요';
+    picker.innerHTML='<p style="font-size:11px;color:#9e8880;padding:8px;line-height:1.8;">위 <b>🔑 API 키 설정</b>을 펼쳐 키를 입력하세요.<br><a href="https://gnews.io" target="_blank" style="color:#4fc3f7;">gnews.io</a>에서 무료로 발급받을 수 있습니다.</p>';
+    return;
   }
   try{
-    // ── 방법 0: Electron 백엔드 (CORS 없음 — 가장 안정적)
-    if(window.electronAPI?.isElectron){
-      let q2=kw;
-      if(fromVal)q2+=` after:${fromVal}`;else if(!toVal){const d=new Date();d.setMonth(d.getMonth()-3);q2+=` after:${d.toISOString().substring(0,10)}`;}
-      if(toVal)q2+=` before:${toVal}`;
-      const rssUrl2=`https://news.google.com/rss/search?q=${encodeURIComponent(q2)}&hl=ko&gl=KR&ceid=KR:ko`;
-      const text2=await window.electronAPI.fetchRSS(rssUrl2);
-      if(!text2||!text2.includes('<item>'))throw new Error('뉴스 결과 없음');
-      const xml2=(new DOMParser()).parseFromString(text2,'text/xml');
-      newsPool=parseItems(Array.from(xml2.querySelectorAll('item')));
-      if(!newsPool.length)throw new Error('파싱 결과 없음');
-      st.textContent=`✅ ${newsPool.length}건 (최신순)`;renderPicker();
-      return;
-    }
-    // ── 방법 A: GNews API (API 키 있을 때 — 안정적)
-    if(apiKey){
-      let gUrl=`https://gnews.io/api/v4/search?q=${encodeURIComponent(kw)}&lang=ko&max=30&token=${apiKey}`;
-      if(fromVal)gUrl+=`&from=${fromVal}T00:00:00Z`;
-      if(toVal)gUrl+=`&to=${toVal}T23:59:59Z`;
-      const r=await fetch(gUrl,{signal:AbortSignal.timeout(12000)});
-      if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(`GNews 오류: ${e.errors?.[0]||r.status}`);}
-      const d=await r.json();
-      newsPool=(d.articles||[]).map((a,i)=>({id:Date.now()+i,title:a.title||'',summary:(a.description||'').substring(0,200),link:a.url||'',pubDate:(a.publishedAt||'').substring(0,10)})).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
-      if(!newsPool.length)throw new Error('검색 결과 없음');
-      st.textContent=`✅ ${newsPool.length}건 (GNews)`;renderPicker();return;
-    }
-    // ── 방법 B: CORS 프록시로 Google News RSS 시도
-    let query=kw;
-    if(fromVal)query+=` after:${fromVal}`;else if(!toVal){const d=new Date();d.setMonth(d.getMonth()-3);query+=` after:${d.toISOString().substring(0,10)}`;}
-    if(toVal)query+=` before:${toVal}`;
-    const rssUrl=`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
-    let text=null;
-    const proxies=[
-      [()=>fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),true],
-      [()=>fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),false],
-      [()=>fetch(`https://corsproxy.io/?${encodeURIComponent(rssUrl)}`,{signal:AbortSignal.timeout(10000)}),false],
-    ];
-    for(const [fn,isJson] of proxies){
-      try{
-        const r=await fn();if(!r.ok)continue;
-        const t=isJson?(await r.json()).contents:await r.text();
-        if(t&&t.includes('<item>')){text=t;break;}
-      }catch(e){}
-    }
-    if(text){
-      const xml=(new DOMParser()).parseFromString(text,'text/xml');
-      const items=Array.from(xml.querySelectorAll('item'));
-      newsPool=parseItems(items);
-      if(newsPool.length){st.textContent=`✅ ${newsPool.length}건 (최신순)`;renderPicker();return;}
-    }
-    // ── 안내: API 키 없이 불가
-    st.textContent='⚠️ 브라우저 보안(CORS)으로 검색 불가';
-    picker.innerHTML='<p style="font-size:11px;color:#9e8880;padding:8px;line-height:1.7;">구글 뉴스 RSS가 브라우저에서 직접 차단됩니다.<br>🔑 <b>API 키 설정</b>을 펼쳐 <a href="https://gnews.io" target="_blank" style="color:#4fc3f7;">gnews.io</a> 무료 키를 입력하면 정상 작동합니다.<br><span style="color:#5a8aaa;">또는 아래 직접 입력을 이용하세요.</span></p>';
+    let gUrl=`https://gnews.io/api/v4/search?q=${encodeURIComponent(kw)}&lang=ko&max=30&token=${apiKey}`;
+    if(fromVal)gUrl+=`&from=${fromVal}T00:00:00Z`;
+    if(toVal)gUrl+=`&to=${toVal}T23:59:59Z`;
+    const r=await fetch(gUrl,{signal:AbortSignal.timeout(12000)});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(`GNews 오류: ${e.errors?.[0]||r.status}`);}
+    const d=await r.json();
+    newsPool=(d.articles||[]).map((a,i)=>({
+      id:Date.now()+i,
+      title:a.title||'',
+      summary:(a.description||'').substring(0,200),
+      link:a.url||'',
+      pubDate:(a.publishedAt||'').substring(0,10)
+    })).filter(n=>n.title).sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
+    if(!newsPool.length)throw new Error('검색 결과가 없습니다');
+    st.textContent=`✅ ${newsPool.length}건`;
+    renderPicker();
   }catch(err){
     st.textContent='⚠️ '+err.message;
     picker.innerHTML=`<p style="font-size:11px;color:#9e8880;padding:8px;">${err.message}</p>`;

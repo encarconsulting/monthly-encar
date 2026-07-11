@@ -780,7 +780,6 @@ async function parseNewsUrl(){
   if(!url){alert('기사 URL을 입력해주세요.');return;}
   st.textContent='🔍 분석 중...';
   try{
-    // Microlink API: 메타데이터 전용 서비스, 대부분의 뉴스 사이트 지원
     const r=await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(15000)});
     if(!r.ok)throw new Error(`오류: ${r.status}`);
     const data=await r.json();
@@ -791,12 +790,15 @@ async function parseNewsUrl(){
     const bulletsEl=document.getElementById('ncBullets');
     if(title){titleEl.value=title;titleEl.classList.add('nc-filled');}
     if(desc){
-      const bullets=desc.split(/[.。!？]+/).map(s=>s.trim()).filter(s=>s.length>8).slice(0,3);
-      bulletsEl.value=bullets.length?bullets.join('\n'):desc;
+      // 문장 단위로 분리 (완성형 문장 유지, 최대 3줄)
+      const sentences=desc.replace(/\s+/g,' ')
+        .split(/(?<=[.!?。！？])\s+/)
+        .map(s=>s.trim()).filter(s=>s.length>10);
+      bulletsEl.value=sentences.length?sentences.slice(0,3).join('\n'):desc.substring(0,200);
       bulletsEl.classList.add('nc-filled');
     }
     setTimeout(()=>{titleEl.classList.remove('nc-filled');bulletsEl.classList.remove('nc-filled');},3000);
-    st.textContent=title?'✅ 분석 완료 — 아래 내용을 수정 후 [클리핑 추가] 클릭':'⚠️ 제목 자동추출 실패 — 직접 입력해주세요.';
+    st.textContent=title?'✅ 분석 완료 — 내용 수정 후 [클리핑 추가] 클릭':'⚠️ 제목 자동추출 실패 — 직접 입력해주세요.';
   }catch(err){
     st.textContent='⚠️ 분석 실패: '+err.message;
   }
@@ -876,11 +878,17 @@ function addNewsClipping(){
              [...document.querySelectorAll('.ch-body')].at(-1);
   if(!body){alert('먼저 챕터를 추가해주세요.');return;}
   const bullets=bulletsRaw?bulletsRaw.split('\n').map(s=>s.trim()).filter(s=>s):[];
-  const bulletsHtml=bullets.map(b=>`<li style="margin-bottom:3px;">${esc(b)}</li>`).join('');
-  const qrHtml=url?`<div style="text-align:center;min-width:100px;padding-left:12px;flex-shrink:0;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(url)}" width="90" height="90" alt="QR" style="display:block;border:2px solid #c0392b;"><div style="font-size:9px;color:#555;margin-top:3px;">QR코드(기사보기)</div></div>`:'';
-  const html=`<div style="display:flex;align-items:flex-start;margin:6px 0;padding:8px 0;border-bottom:1px solid #e0e0e0;"><div style="flex:1;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:6px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<ul style="margin:0;padding-left:18px;font-size:12px;color:#333;line-height:1.7;">${bulletsHtml}</ul>`:''}</div>${qrHtml}</div>`;
-  body.focus();
-  document.execCommand('insertHTML',false,html);
+  const bulletsHtml=bullets.map(b=>`<li style="margin-bottom:4px;">${esc(b)}</li>`).join('');
+  // table 레이아웃으로 겹침 완전 방지 (flex 제거)
+  const qrCell=url
+    ?`<td style="width:106px;text-align:center;vertical-align:top;padding-left:10px;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(url)}" width="90" height="90" alt="QR" style="display:block;border:2px solid #c0392b;">
+        <div style="font-size:9px;color:#555;margin-top:3px;">QR코드(기사보기)</div>
+      </td>`
+    :'';
+  const block=`<div style="border:1px solid #dde6f0;border-radius:6px;padding:12px 14px;margin:8px 0;background:#fafafa;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="vertical-align:top;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:7px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<ul style="margin:0;padding-left:18px;font-size:12px;color:#333;line-height:1.75;">${bulletsHtml}</ul>`:''}</td>${qrCell}</tr></table></div>`;
+  // insertAdjacentHTML로 독립 블록 추가 (execCommand 겹침 버그 방지)
+  body.insertAdjacentHTML('beforeend', block);
   document.getElementById('ncUrl').value='';
   document.getElementById('ncTitle').value='';
   document.getElementById('ncBullets').value='';

@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>월간 엔카 리포트 빌더 v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@400;700;900&family=Gugi&family=Jua&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 <style>
@@ -213,6 +216,18 @@ input[type="checkbox"], input[type="radio"]{ accent-color:var(--cyan); }
 .preview.pv-mode .hdr-logo-ph,.preview.pv-mode .hdr-logo-h,.preview.pv-mode .hdr-logo-del{display:none !important;}
 .preview.pv-mode .hdr-logo-wrap{border:none !important;background:transparent !important;cursor:default !important;}
 
+/* ── 제목 팝업 툴바 */
+#ttlToolbar{display:none;position:fixed;z-index:9999;background:#1a3a5c;border:1.5px solid var(--cyandk);border-radius:10px;padding:7px 12px;gap:7px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.7);flex-wrap:wrap;}
+#ttlToolbar .ttl-tb-lbl{font-size:10px;color:#7aaac8;white-space:nowrap;}
+#ttlToolbar select,#ttlToolbar input[type="number"]{padding:3px 6px;background:var(--navy);color:#c8ddf0;border:1px solid var(--navy3);border-radius:5px;font-size:11px;font-family:inherit;}
+#ttlToolbar input[type="number"]{width:54px;}
+.ttl-pos-btn{padding:3px 9px;background:var(--navy3);color:#c8ddf0;border:1px solid var(--navy4);border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;transition:background .15s;}
+.ttl-pos-btn:hover{background:var(--navy4);}
+.ttl-pos-btn.active{background:var(--cyandk);color:#fff;border-color:var(--cyandk);}
+#ttlToolbarClose{background:transparent;border:none;color:#7aaac8;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;}
+#ttlToolbarClose:hover{color:#fff;}
+/* 뉴스 분석 완료 강조 */
+.nc-filled{border-color:var(--cyandk)!important;background:rgba(79,195,247,.07)!important;}
 @media print{
   .sidebar,.page-lbl,.page-acts,.ch-tb,.ch-del,.ch-drag,.add-ch-bar,.fi-h,.fi-del,.fi-cut,.add-page-bar,#pvBar,#tblTb,#clipHint,.hdr-logo-ph,.hdr-logo-h,.hdr-logo-del,.chart-del-btn{ display:none !important; }
   .hdr-logo-wrap{ border:none !important; background:transparent !important; }
@@ -241,24 +256,14 @@ input[type="checkbox"], input[type="radio"]{ accent-color:var(--cyan); }
   </div>
 
   <div class="sec">
-    <h3>📰 뉴스 검색</h3>
-    <div class="date-row">
-      <div style="flex:1;"><label>시작일</label><input type="date" id="nwsFrom" class="inp" style="padding:4px 6px;"></div>
-      <div style="flex:1;"><label>종료일</label><input type="date" id="nwsTo"   class="inp" style="padding:4px 6px;"></div>
-    </div>
-    <input type="text" id="nwsKw" class="inp" placeholder="키워드 (미입력 시 중고차)">
-    <button class="btn btn-red" onclick="fetchNews()" style="margin-top:5px;">🔍 실시간 뉴스 가져오기</button>
-    <div id="nwsSt"></div>
-    <div class="nws-box" id="nwsPicker">
-      <p style="text-align:center;color:gray;padding:12px 0;font-size:11px;">날짜 또는 키워드 입력 후 검색.</p>
-    </div>
-    <div class="manual-sec">
-      <p>📝 직접 입력</p>
-      <input type="text" id="mT" class="inp" placeholder="뉴스 제목" style="margin-bottom:3px;">
-      <input type="text" id="mS" class="inp" placeholder="요약 (선택)" style="margin-bottom:3px;">
-      <input type="text" id="mL" class="inp" placeholder="링크 (선택)">
-      <button class="btn btn-gray" onclick="addManualNews()" style="margin-top:4px;">+ 직접 추가</button>
-    </div>
+    <h3>📰 뉴스 클리핑</h3>
+    <p style="font-size:10px;color:#7aaac8;margin:0 0 7px;">URL 입력 후 분석 → 챕터에 삽입</p>
+    <input type="text" id="ncUrl" class="inp" placeholder="기사 URL" style="margin-bottom:3px;">
+    <button class="btn btn-dark" onclick="parseNewsUrl()" style="margin-top:0;margin-bottom:5px;background:#1a4a72;">🔍 URL 자동 분석</button>
+    <input type="text" id="ncTitle" class="inp" placeholder="뉴스 제목" style="margin-bottom:3px;">
+    <textarea id="ncBullets" class="inp" placeholder="핵심내용&#10;(줄바꿈으로 항목 구분)" style="height:72px;resize:vertical;margin-bottom:3px;line-height:1.6;"></textarea>
+    <button class="btn btn-red" onclick="addNewsClipping()" style="margin-top:2px;">📰 클리핑 챕터에 추가</button>
+    <div id="ncSt" style="font-size:11px;color:#5a8aaa;margin-top:3px;min-height:14px;"></div>
   </div>
 
 
@@ -373,6 +378,21 @@ function createPage(n){
   container.appendChild(wrap);
   pageCount=Math.max(pageCount,n);
   initChSort(wrap.querySelector(`#ct${n}`));
+  // 저장된 로고가 있으면 새 페이지에도 자동 적용
+  try{
+    const _logo=localStorage.getItem('encarLogoSrc');
+    if(_logo){
+      const _lw=wrap.querySelector('.hdr-logo-wrap');
+      if(_lw&&!_lw.classList.contains('has-img')){
+        const _li=_lw.querySelector('.hdr-logo-img');
+        _li.src=_logo;_li.style.height='52px';_li.style.width='auto';
+        _lw.classList.add('has-img');setupHdrLogoResize(_lw);
+      }
+    }
+  }catch(e){}
+  // 저장된 제목 스타일 적용 + 팝업 툴바 연결
+  const _ttl=wrap.querySelector('.ttl-main');
+  if(_ttl){applyTtlStyleToEl(_ttl);_ttl.addEventListener('focus',()=>showTtlToolbar(_ttl));}
   return wrap;
 }
 function addPage(){ createPage(pageCount+1); }
@@ -428,10 +448,16 @@ function hdrLogoClick(wrap){
     const file=inp.files[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=ev=>{
-      const img=wrap.querySelector('.hdr-logo-img');
-      img.src=ev.target.result;img.style.height='52px';img.style.width='auto';
-      wrap.classList.add('has-img');
-      setupHdrLogoResize(wrap);
+      const src=ev.target.result;
+      // 모든 페이지에 동일 로고 적용
+      document.querySelectorAll('.hdr-logo-wrap').forEach(w=>{
+        const img=w.querySelector('.hdr-logo-img');
+        img.src=src;img.style.height='52px';img.style.width='auto';
+        w.classList.add('has-img');
+        setupHdrLogoResize(w);
+      });
+      // localStorage에 저장 (페이지 재시작 후에도 유지)
+      try{localStorage.setItem('encarLogoSrc',src);}catch(e){}
     };
     reader.readAsDataURL(file);
   };
@@ -439,10 +465,13 @@ function hdrLogoClick(wrap){
 }
 function hdrLogoDel(e,btn){
   e.stopPropagation();
-  const wrap=btn.closest('.hdr-logo-wrap');
-  const img=wrap.querySelector('.hdr-logo-img');
-  img.src='';img.style.height='';img.style.width='';
-  wrap.classList.remove('has-img');
+  if(!confirm('모든 페이지에서 로고를 삭제하시겠습니까?'))return;
+  document.querySelectorAll('.hdr-logo-wrap').forEach(w=>{
+    const img=w.querySelector('.hdr-logo-img');
+    img.src='';img.style.height='';img.style.width='';
+    w.classList.remove('has-img');
+  });
+  try{localStorage.removeItem('encarLogoSrc');}catch(e){}
 }
 function setupHdrLogoResize(wrap){
   const h=wrap.querySelector('.hdr-logo-h'),img=wrap.querySelector('.hdr-logo-img');
@@ -742,40 +771,132 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.fi'))deselImg();
 });
 
-// ── 뉴스 검색 (Cloudflare Worker → GNews API)
+// ── 뉴스 클리핑
 const NEWS_PROXY='https://spring-paper-ff2b.encarconsulting.workers.dev';
-async function fetchNews(){
-  const kw=document.getElementById('nwsKw').value.trim()||'중고차';
-  const fromVal=document.getElementById('nwsFrom').value,toVal=document.getElementById('nwsTo').value;
-  const picker=document.getElementById('nwsPicker'),st=document.getElementById('nwsSt');
-  picker.innerHTML='<p style="text-align:center;color:#7aaac8;padding:12px;font-size:11px;">검색 중...</p>';st.textContent='';
+
+async function parseNewsUrl(){
+  const url=document.getElementById('ncUrl').value.trim();
+  const st=document.getElementById('ncSt');
+  if(!url){alert('기사 URL을 입력해주세요.');return;}
+  st.textContent='🔍 분석 중...';
   try{
-    let workerUrl=`${NEWS_PROXY}?q=${encodeURIComponent(kw)}`;
-    if(fromVal)workerUrl+=`&from=${fromVal}`;
-    if(toVal)workerUrl+=`&to=${toVal}`;
-    const r=await fetch(workerUrl,{signal:AbortSignal.timeout(15000)});
+    const r=await fetch(`${NEWS_PROXY}?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(15000)});
     if(!r.ok)throw new Error(`오류: ${r.status}`);
-    const data=await r.json();
-    if(!data.articles||!data.articles.length)throw new Error('검색 결과 없음');
-    let items=data.articles.map((a,i)=>({
-      id:Date.now()+i,
-      title:a.title||'',
-      summary:a.description||'',
-      link:a.url||'',
-      pubDate:a.publishedAt?a.publishedAt.substring(0,10):''
-    })).filter(n=>n.title);
-    items.sort((a,b)=>b.pubDate.localeCompare(a.pubDate));
-    newsPool=items;
-    st.textContent=`✅ ${newsPool.length}건`;
-    renderPicker();
+    const html=await r.text();
+    const doc=(new DOMParser()).parseFromString(html,'text/html');
+    // og:title → twitter:title → <title> 순서로 추출
+    const title=(
+      doc.querySelector('meta[property="og:title"]')?.getAttribute('content')||
+      doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content')||
+      doc.querySelector('title')?.textContent||''
+    ).trim();
+    // og:description → twitter:description → meta description 순서
+    const desc=(
+      doc.querySelector('meta[property="og:description"]')?.getAttribute('content')||
+      doc.querySelector('meta[name="twitter:description"]')?.getAttribute('content')||
+      doc.querySelector('meta[name="description"]')?.getAttribute('content')||''
+    ).trim();
+    const titleEl=document.getElementById('ncTitle');
+    const bulletsEl=document.getElementById('ncBullets');
+    if(title){titleEl.value=title;titleEl.classList.add('nc-filled');}
+    if(desc){
+      const bullets=desc.split(/[.。!？]+/).map(s=>s.trim()).filter(s=>s.length>8).slice(0,3);
+      bulletsEl.value=bullets.length?bullets.join('\n'):desc;
+      bulletsEl.classList.add('nc-filled');
+    }
+    // 3초 후 하이라이트 해제
+    setTimeout(()=>{titleEl.classList.remove('nc-filled');bulletsEl.classList.remove('nc-filled');},3000);
+    st.textContent=title?'✅ 분석 완료 — 아래 내용을 수정 후 [클리핑 추가] 클릭':'⚠️ 제목 자동추출 실패 — 직접 입력해주세요.';
   }catch(err){
-    st.textContent='⚠️ '+err.message;
-    picker.innerHTML=`<p style="font-size:11px;color:#9e8880;padding:8px;">${err.message}</p>`;
+    st.textContent='⚠️ 분석 실패: '+err.message;
   }
 }
-function renderPicker(){ const p=document.getElementById('nwsPicker');p.innerHTML=''; newsPool.forEach(item=>{ const row=document.createElement('div');row.className='nws-row';const uid=`n${item.id}`;const sel=selNews.some(s=>s.id===item.id);row.innerHTML=`<input type="checkbox" id="${uid}" ${sel?'checked':''} onchange="toggleNews(${item.id})"><label for="${uid}"><b>${esc(item.title)}</b><br><span style="color:#888">${item.pubDate}</span></label>`;p.appendChild(row); }); }
-function toggleNews(id){ const item=newsPool.find(n=>n.id===id),idx=selNews.findIndex(s=>s.id===id); if(idx>-1)selNews.splice(idx,1);else if(item)selNews.push(item); }
-function addManualNews(){ const t=document.getElementById('mT').value.trim();if(!t){alert('제목을 입력해주세요.');return;} selNews.push({id:Date.now(),title:t,summary:document.getElementById('mS').value.trim(),link:document.getElementById('mL').value.trim(),pubDate:new Date().toISOString().substring(0,10)}); ['mT','mS','mL'].forEach(id=>document.getElementById(id).value=''); alert(`"${t}" 추가 완료.`); }
+
+// ── 제목 팝업 툴바
+function showTtlToolbar(el){
+  const tb=document.getElementById('ttlToolbar');
+  tb.style.display='flex';
+  requestAnimationFrame(()=>{
+    const rect=el.getBoundingClientRect();
+    const tbH=tb.offsetHeight;
+    let top=rect.top-tbH-10;
+    if(top<8)top=rect.bottom+8;
+    let left=Math.max(8,Math.min(rect.left,window.innerWidth-tb.offsetWidth-8));
+    tb.style.top=top+'px';tb.style.left=left+'px';
+  });
+  const s=JSON.parse(localStorage.getItem('encarTtlStyle')||'{}');
+  document.getElementById('ttlFontPop').value=s.font||'';
+  document.getElementById('ttlSizePop').value=s.size||'';
+  updateTtlPosButtons(s.pos||'0');
+}
+
+function applyTtlFromPopup(){
+  const font=document.getElementById('ttlFontPop').value;
+  const size=document.getElementById('ttlSizePop').value;
+  const pos=document.querySelector('.ttl-pos-btn.active')?.dataset.pos||'0';
+  document.querySelectorAll('.ttl-main').forEach(el=>{
+    el.style.fontFamily=font?`'${font}','Malgun Gothic',sans-serif`:'';
+    el.style.fontSize=size?size+'px':'';
+    el.style.order=pos;
+  });
+  try{localStorage.setItem('encarTtlStyle',JSON.stringify({font,size,pos}));}catch(e){}
+}
+
+function setTtlPos(pos){
+  updateTtlPosButtons(pos);
+  document.querySelectorAll('.ttl-main').forEach(el=>el.style.order=pos);
+  const s=JSON.parse(localStorage.getItem('encarTtlStyle')||'{}');
+  s.pos=pos;try{localStorage.setItem('encarTtlStyle',JSON.stringify(s));}catch(e){}
+}
+
+function updateTtlPosButtons(pos){
+  document.querySelectorAll('.ttl-pos-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.pos===String(pos)));
+}
+
+function loadTtlStyle(){
+  try{
+    const raw=localStorage.getItem('encarTtlStyle');if(!raw)return;
+    const s=JSON.parse(raw);
+    document.querySelectorAll('.ttl-main').forEach(el=>{
+      if(s.font)el.style.fontFamily=`'${s.font}','Malgun Gothic',sans-serif`;
+      if(s.size)el.style.fontSize=s.size+'px';
+      if(s.pos)el.style.order=s.pos;
+    });
+  }catch(e){}
+}
+
+function applyTtlStyleToEl(el){
+  try{
+    const raw=localStorage.getItem('encarTtlStyle');if(!raw)return;
+    const s=JSON.parse(raw);
+    if(s.font)el.style.fontFamily=`'${s.font}','Malgun Gothic',sans-serif`;
+    if(s.size)el.style.fontSize=s.size+'px';
+    if(s.pos)el.style.order=s.pos;
+  }catch(e){}
+}
+
+function addNewsClipping(){
+  const url=document.getElementById('ncUrl').value.trim();
+  const title=document.getElementById('ncTitle').value.trim();
+  const bulletsRaw=document.getElementById('ncBullets').value.trim();
+  const st=document.getElementById('ncSt');
+  if(!title){alert('뉴스 제목을 입력해주세요.');return;}
+  // 활성 챕터 또는 마지막 챕터의 ch-body에 삽입
+  const body=document.querySelector('.ch-block.active .ch-body')||
+             [...document.querySelectorAll('.ch-body')].at(-1);
+  if(!body){alert('먼저 챕터를 추가해주세요.');return;}
+  const bullets=bulletsRaw?bulletsRaw.split('\n').map(s=>s.trim()).filter(s=>s):[];
+  const bulletsHtml=bullets.map(b=>`<li style="margin-bottom:3px;">${esc(b)}</li>`).join('');
+  const qrHtml=url?`<div style="text-align:center;min-width:100px;padding-left:12px;flex-shrink:0;"><img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(url)}" width="90" height="90" alt="QR" style="display:block;border:2px solid #c0392b;"><div style="font-size:9px;color:#555;margin-top:3px;">QR코드(기사보기)</div></div>`:'';
+  const html=`<div style="display:flex;align-items:flex-start;margin:6px 0;padding:8px 0;border-bottom:1px solid #e0e0e0;"><div style="flex:1;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:6px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<ul style="margin:0;padding-left:18px;font-size:12px;color:#333;line-height:1.7;">${bulletsHtml}</ul>`:''}</div>${qrHtml}</div>`;
+  body.focus();
+  document.execCommand('insertHTML',false,html);
+  document.getElementById('ncUrl').value='';
+  document.getElementById('ncTitle').value='';
+  document.getElementById('ncBullets').value='';
+  st.textContent='✅ 클리핑 추가 완료';
+  setTimeout(()=>st.textContent='',2500);
+}
 
 // ── 저장/복원
 function saveState(silent=false){
@@ -915,6 +1036,49 @@ function resetAll(){
 // 시작 시 초기화
 initTblGrid();
 if(!loadState())createPage(1);
+loadTtlStyle();
+// 복원된 페이지의 제목에 팝업 툴바 연결
+document.querySelectorAll('.ttl-main').forEach(el=>el.addEventListener('focus',()=>showTtlToolbar(el)));
+// 툴바 외부 클릭 시 닫기
+document.addEventListener('mousedown',e=>{
+  const tb=document.getElementById('ttlToolbar');
+  if(!tb||tb.style.display==='none')return;
+  if(!tb.contains(e.target)&&!e.target.classList.contains('ttl-main'))tb.style.display='none';
+});
+// localStorage 로고를 아직 로고 없는 페이지에 적용
+(function(){
+  try{
+    const saved=localStorage.getItem('encarLogoSrc');
+    if(!saved)return;
+    document.querySelectorAll('.hdr-logo-wrap:not(.has-img)').forEach(w=>{
+      const img=w.querySelector('.hdr-logo-img');
+      img.src=saved;img.style.height='52px';img.style.width='auto';
+      w.classList.add('has-img');setupHdrLogoResize(w);
+    });
+  }catch(e){}
+})();
 </script>
+
+<!-- 제목 스타일 팝업 툴바 -->
+<div id="ttlToolbar">
+  <span class="ttl-tb-lbl">🔤 제목 스타일</span>
+  <select id="ttlFontPop" onchange="applyTtlFromPopup()">
+    <option value="">기본폰트</option>
+    <option value="Noto Sans KR">Noto Sans KR</option>
+    <option value="Noto Serif KR">Noto Serif KR</option>
+    <option value="Nanum Gothic">나눔고딕</option>
+    <option value="Nanum Myeongjo">나눔명조</option>
+    <option value="Gothic A1">Gothic A1</option>
+    <option value="Black Han Sans">Black Han Sans</option>
+    <option value="Jua">Jua</option>
+    <option value="Gugi">Gugi</option>
+  </select>
+  <input type="number" id="ttlSizePop" min="10" max="72" placeholder="크기px" title="글자 크기(px)" oninput="applyTtlFromPopup()">
+  <span class="ttl-tb-lbl">위치</span>
+  <button class="ttl-pos-btn" data-pos="-1" onclick="setTtlPos('-1')">◀ 왼쪽</button>
+  <button class="ttl-pos-btn active" data-pos="0" onclick="setTtlPos('0')">중앙</button>
+  <button class="ttl-pos-btn" data-pos="3" onclick="setTtlPos('3')">오른쪽 ▶</button>
+  <button id="ttlToolbarClose" onclick="document.getElementById('ttlToolbar').style.display='none'" title="닫기">✕</button>
+</div>
 </body>
 </html

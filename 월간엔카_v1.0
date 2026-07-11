@@ -496,6 +496,10 @@ function insertChBlock(ct,bar,name){
       <button class="tb-btn tb-i" onmousedown="fmt(event,'italic')"              title="기울임">I</button>
       <button class="tb-btn tb-u" onmousedown="fmt(event,'underline')"           title="밑줄">U</button>
       <div class="tb-sep"></div>
+      <button class="tb-btn" onmousedown="fmt(event,'justifyLeft')"             title="왼쪽 정렬">◀</button>
+      <button class="tb-btn" onmousedown="fmt(event,'justifyCenter')"           title="가운데 정렬">▣</button>
+      <button class="tb-btn" onmousedown="fmt(event,'justifyRight')"            title="오른쪽 정렬">▶</button>
+      <div class="tb-sep"></div>
       <button class="tb-btn" onmousedown="fmt(event,'insertUnorderedList')"      title="글머리 기호">≡</button>
       <button class="tb-btn" onmousedown="fmt(event,'insertOrderedList')"        title="번호 목록">1.</button>
       <div class="tb-sep"></div>
@@ -878,7 +882,8 @@ function addNewsClipping(){
              [...document.querySelectorAll('.ch-body')].at(-1);
   if(!body){alert('먼저 챕터를 추가해주세요.');return;}
   const bullets=bulletsRaw?bulletsRaw.split('\n').map(s=>s.trim()).filter(s=>s):[];
-  const bulletsHtml=bullets.map(b=>`<li style="margin-bottom:4px;">${esc(b)}</li>`).join('');
+  // 각 문장을 <p> 문단으로 표현 (좌측정렬, 불릿 없음)
+  const bulletsHtml=bullets.map(b=>`<p style="margin:0 0 5px 0;text-align:left;line-height:1.75;">${esc(b)}</p>`).join('');
   // table 레이아웃으로 겹침 완전 방지 (flex 제거)
   const qrCell=url
     ?`<td style="width:106px;text-align:center;vertical-align:top;padding-left:10px;">
@@ -886,7 +891,7 @@ function addNewsClipping(){
         <div style="font-size:9px;color:#555;margin-top:3px;">QR코드(기사보기)</div>
       </td>`
     :'';
-  const block=`<div style="border:1px solid #dde6f0;border-radius:6px;padding:12px 14px;margin:8px 0;background:#fafafa;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="vertical-align:top;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:7px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<ul style="margin:0;padding-left:18px;font-size:12px;color:#333;line-height:1.75;">${bulletsHtml}</ul>`:''}</td>${qrCell}</tr></table></div>`;
+  const block=`<div style="border:1px solid #dde6f0;border-radius:6px;padding:12px 14px;margin:8px 0;background:#fafafa;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="vertical-align:top;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:7px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<div style="font-size:12px;color:#333;text-align:left;">${bulletsHtml}</div>`:''}</td>${qrCell}</tr></table></div>`;
   // insertAdjacentHTML로 독립 블록 추가 (execCommand 겹침 버그 방지)
   body.insertAdjacentHTML('beforeend', block);
   document.getElementById('ncUrl').value='';

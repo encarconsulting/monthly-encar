@@ -782,37 +782,58 @@ async function parseNewsUrl(){
   const url=document.getElementById('ncUrl').value.trim();
   const st=document.getElementById('ncSt');
   if(!url){alert('기사 URL을 입력해주세요.');return;}
-  st.textContent='🔍 분석 중...';
+
+  const titleEl=document.getElementById('ncTitle');
+  const bulletsEl=document.getElementById('ncBullets');
+
+  // ── Step 1: Microlink로 제목 추출 (빠름, ~1초)
+  st.textContent='🔍 기사 분석 중...';
+  let title='', desc='';
   try{
-    const r=await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(15000)});
-    if(!r.ok)throw new Error(`오류: ${r.status}`);
-    const data=await r.json();
-    if(data.status!=='success')throw new Error(data.message||'메타데이터 추출 실패');
-    const title=(data.data?.title||'').trim();
-    const desc=(data.data?.description||'').trim();
-    const titleEl=document.getElementById('ncTitle');
-    const bulletsEl=document.getElementById('ncBullets');
-    if(title){titleEl.value=title;titleEl.classList.add('nc-filled');}
-    if(desc){
-      const cleaned=desc.replace(/\s+/g,' ').replace(/^[-•·\s]+/,'').trim();
-      // 1차: 한국어·영어 문장 끝(다./요./죠./합니다. 등) 기준 분리
-      let parts=cleaned
-        .split(/(?<=[다요죠함임음]\.)\s+|(?<=[.!?。！？])\s+/)
-        .map(s=>s.replace(/^[-•·\s]+/,'').trim())
-        .filter(s=>s.length>8&&s.length<120);
-      // 2차: 문장이 1개 이하면 쉼표/…/|로 분리 시도
-      if(parts.length<=1){
-        parts=cleaned.split(/[,，、…|]+/).map(s=>s.trim()).filter(s=>s.length>8&&s.length<120);
+    const r=await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(12000)});
+    if(r.ok){
+      const data=await r.json();
+      if(data.status==='success'){
+        title=(data.data?.title||'').trim();
+        desc=(data.data?.description||'').trim();
       }
-      // 최대 3개, 마침표로 마무리
-      const result=parts.slice(0,3).map(s=>(/[.!?。！？]$/.test(s)?s:s+'.'));
-      bulletsEl.value=result.length?result.join('\n'):cleaned.substring(0,150);
-      bulletsEl.classList.add('nc-filled');
     }
-    setTimeout(()=>{titleEl.classList.remove('nc-filled');bulletsEl.classList.remove('nc-filled');},3000);
-    st.textContent=title?'✅ 분석 완료 — 내용 수정 후 [클리핑 추가] 클릭':'⚠️ 제목 자동추출 실패 — 직접 입력해주세요.';
-  }catch(err){
-    st.textContent='⚠️ 분석 실패: '+err.message;
+  }catch(e){}
+  if(title){titleEl.value=title;titleEl.classList.add('nc-filled');}
+
+  // ── Step 2: Worker AI로 본문 추출 + 요약 (5~15초)
+  st.textContent='🤖 AI 요약 생성 중... (10~15초 소요)';
+  let aiSuccess=false;
+  try{
+    const aiResp=await fetch(`${NEWS_PROXY}?summarize=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(30000)});
+    if(aiResp.ok){
+      const aiData=await aiResp.json();
+      if(aiData.bullets&&aiData.bullets.length){
+        bulletsEl.value=aiData.bullets.join('\n');
+        bulletsEl.classList.add('nc-filled');
+        aiSuccess=true;
+      }
+    }
+  }catch(e){}
+
+  // ── Step 3: AI 실패 시 description 문장 분리로 폴백
+  if(!aiSuccess&&desc){
+    const cleaned=desc.replace(/\s+/g,' ').replace(/^[-•·\s]+/,'').trim();
+    let parts=cleaned
+      .split(/(?<=[다요죠함임음]\.)\s+|(?<=[.!?。！？])\s+/)
+      .map(s=>s.replace(/^[-•·\s]+/,'').trim())
+      .filter(s=>s.length>8&&s.length<120);
+    if(parts.length<=1) parts=cleaned.split(/[,，、…|]+/).map(s=>s.trim()).filter(s=>s.length>8&&s.length<120);
+    const result=parts.slice(0,3).map(s=>(/[.!?。！？]$/.test(s)?s:s+'.'));
+    bulletsEl.value=result.length?result.join('\n'):cleaned.substring(0,150);
+    bulletsEl.classList.add('nc-filled');
+  }
+
+  setTimeout(()=>{titleEl.classList.remove('nc-filled');bulletsEl.classList.remove('nc-filled');},3000);
+  if(aiSuccess){
+    st.textContent=title?'✅ AI 요약 완료 — 수정 후 [클리핑 추가] 클릭':'⚠️ 제목 자동추출 실패 — 직접 입력해주세요.';
+  }else{
+    st.textContent=title?'✅ 기본 분석 완료 (AI 불가) — 내용 확인 후 [클리핑 추가] 클릭':'⚠️ 자동추출 실패 — 직접 입력해주세요.';
   }
 }
 

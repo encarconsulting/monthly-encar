@@ -794,11 +794,19 @@ async function parseNewsUrl(){
     const bulletsEl=document.getElementById('ncBullets');
     if(title){titleEl.value=title;titleEl.classList.add('nc-filled');}
     if(desc){
-      // 문장 단위로 분리 (완성형 문장 유지, 최대 3줄)
-      const sentences=desc.replace(/\s+/g,' ')
-        .split(/(?<=[.!?。！？])\s+/)
-        .map(s=>s.trim()).filter(s=>s.length>10);
-      bulletsEl.value=sentences.length?sentences.slice(0,3).join('\n'):desc.substring(0,200);
+      const cleaned=desc.replace(/\s+/g,' ').replace(/^[-•·\s]+/,'').trim();
+      // 1차: 한국어·영어 문장 끝(다./요./죠./합니다. 등) 기준 분리
+      let parts=cleaned
+        .split(/(?<=[다요죠함임음]\.)\s+|(?<=[.!?。！？])\s+/)
+        .map(s=>s.replace(/^[-•·\s]+/,'').trim())
+        .filter(s=>s.length>8&&s.length<120);
+      // 2차: 문장이 1개 이하면 쉼표/…/|로 분리 시도
+      if(parts.length<=1){
+        parts=cleaned.split(/[,，、…|]+/).map(s=>s.trim()).filter(s=>s.length>8&&s.length<120);
+      }
+      // 최대 3개, 마침표로 마무리
+      const result=parts.slice(0,3).map(s=>(/[.!?。！？]$/.test(s)?s:s+'.'));
+      bulletsEl.value=result.length?result.join('\n'):cleaned.substring(0,150);
       bulletsEl.classList.add('nc-filled');
     }
     setTimeout(()=>{titleEl.classList.remove('nc-filled');bulletsEl.classList.remove('nc-filled');},3000);
@@ -882,8 +890,8 @@ function addNewsClipping(){
              [...document.querySelectorAll('.ch-body')].at(-1);
   if(!body){alert('먼저 챕터를 추가해주세요.');return;}
   const bullets=bulletsRaw?bulletsRaw.split('\n').map(s=>s.trim()).filter(s=>s):[];
-  // 각 문장을 <p> 문단으로 표현 (좌측정렬, 불릿 없음)
-  const bulletsHtml=bullets.map(b=>`<p style="margin:0 0 5px 0;text-align:left;line-height:1.75;">${esc(b)}</p>`).join('');
+  // 불릿(•) 형식 + 좌측정렬
+  const bulletsHtml=bullets.map(b=>`<li style="margin-bottom:4px;text-align:left;">${esc(b)}</li>`).join('');
   // table 레이아웃으로 겹침 완전 방지 (flex 제거)
   const qrCell=url
     ?`<td style="width:106px;text-align:center;vertical-align:top;padding-left:10px;">
@@ -891,7 +899,7 @@ function addNewsClipping(){
         <div style="font-size:9px;color:#555;margin-top:3px;">QR코드(기사보기)</div>
       </td>`
     :'';
-  const block=`<div style="border:1px solid #dde6f0;border-radius:6px;padding:12px 14px;margin:8px 0;background:#fafafa;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="vertical-align:top;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:7px;line-height:1.4;">${esc(title)}</div>${bullets.length?`<div style="font-size:12px;color:#333;text-align:left;">${bulletsHtml}</div>`:''}</td>${qrCell}</tr></table></div>`;
+  const block=`<div style="border:1px solid #dde6f0;border-radius:6px;padding:12px 14px;margin:8px 0;background:#fafafa;"><table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tr><td style="vertical-align:top;"><div style="font-weight:bold;font-size:13px;color:#0f1c2e;margin-bottom:7px;line-height:1.4;text-align:left;">${esc(title)}</div>${bullets.length?`<ul style="margin:0;padding-left:18px;font-size:12px;color:#333;line-height:1.75;text-align:left;">${bulletsHtml}</ul>`:''}</td>${qrCell}</tr></table></div>`;
   // insertAdjacentHTML로 독립 블록 추가 (execCommand 겹침 버그 방지)
   body.insertAdjacentHTML('beforeend', block);
   document.getElementById('ncUrl').value='';
